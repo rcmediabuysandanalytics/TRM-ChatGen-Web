@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AddClientDialog } from "./add-client-dialog";
 import Link from "next/link";
-import { ExternalLink, Settings } from "lucide-react";
+import { Settings } from "lucide-react";
 
 export default async function AdminDashboard() {
     const supabase = await createClient();

@@ -23,6 +23,7 @@ export default function LoginPage() {
         setLoading(true)
         setError(null)
 
+        const supabase = createClient()
         const { error } = await supabase.auth.signInWithPassword({
             email,
             password,
@@ -37,10 +38,10 @@ export default function LoginPage() {
         }
     }
 
-    const handleSignUp = async () => {
-        // Optional: Admin only signup logic if needed, or just tell them to use Supabase dashboard
-        setError("Sign up is restricted to admins via Supabase dashboard for now.")
-    }
+    // const handleSignUp = async () => {
+    //     // Optional: Admin only signup logic if needed, or just tell them to use Supabase dashboard
+    //     setError("Sign up is restricted to admins via Supabase dashboard for now.")
+    // }
 
     return (
         <div className="flex h-screen w-full items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">

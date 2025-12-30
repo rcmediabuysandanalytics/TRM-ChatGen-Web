@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 
 // This page accepts the client ID and renders ONLY the widget.
 // It is meant to be loaded inside an iframe.
-export default async function WidgetPage({ params }: { params: { id: string } }) {
+export default async function WidgetPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params
     const supabase = await createClient()
 

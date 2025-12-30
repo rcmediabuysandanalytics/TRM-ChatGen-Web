@@ -74,7 +74,7 @@ export function ChatWidget({
     theme = {},
     botName = 'Support Bot',
     welcomeMessage = 'Hello! How can I help you today?',
-    clientId,
+    clientId: _clientId,
     forcedDevice,
     logoUrl,
 }: ChatWidgetProps) {
@@ -217,7 +217,10 @@ export function ChatWidget({
                             <div className="flex items-center space-x-3">
                                 <div className="relative h-10 w-10 overflow-hidden rounded-full bg-white/20 flex items-center justify-center font-bold" style={{ color: title_color }}>
                                     {logoUrl ? (
-                                        <img src={logoUrl} alt={botName} className="h-full w-full object-cover" />
+                                        <div className="relative h-full w-full overflow-hidden rounded-full border border-border/50">
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img src={logoUrl} alt={botName} className="h-full w-full object-cover" />
+                                        </div>
                                     ) : (
                                         botName.charAt(0)
                                     )}
