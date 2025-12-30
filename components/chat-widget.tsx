@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useSearchParams } from 'next/navigation';
 
 interface Message {
     role: 'user' | 'assistant';
@@ -94,11 +95,47 @@ export function ChatWidget({
     }, [messages, isOpen]);
 
     // Handle handling device-specific config
-    const getResponsiveConfig = () => {
-        if (forcedDevice && theme.responsive?.[forcedDevice]) {
-            return theme.responsive[forcedDevice];
+    const searchParams = useSearchParams();
+    const [activeDevice, setActiveDevice] = useState<'mobile' | 'laptop' | 'desktop'>(
+        forcedDevice || (searchParams?.get('device') as 'mobile' | 'laptop' | 'desktop') || 'desktop'
+    );
+
+    useEffect(() => {
+        if (forcedDevice) {
+            setActiveDevice(forcedDevice);
         }
-        return theme.responsive?.desktop || {};
+    }, [forcedDevice]);
+
+    // Listen for resize events from parent
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        const handleMessage = (event: MessageEvent) => {
+            if (event.data?.type === 'TRM_HOST_RESIZE') {
+                setActiveDevice(event.data.device);
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, []);
+
+    // Handle Modal signaling
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        if (activeFlow === 'booking') {
+            window.parent.postMessage({ type: 'TRM_CHAT_MODAL_OPEN' }, '*');
+        } else {
+            window.parent.postMessage({ type: 'TRM_CHAT_MODAL_CLOSE' }, '*');
+        }
+    }, [activeFlow]);
+
+    const getResponsiveConfig = () => {
+        if (theme?.responsive?.[activeDevice]) {
+            return theme.responsive[activeDevice];
+        }
+        return theme?.responsive?.desktop || {};
     };
 
     const config = getResponsiveConfig();
