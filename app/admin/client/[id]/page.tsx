@@ -5,7 +5,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
-export default async function ClientPage({ params }: { params: { id: string } }) {
+export default async function ClientPage({ params }: { params: Promise<{ id: string }> }) {
     const supabase = await createClient();
     const { id } = await params;
 
