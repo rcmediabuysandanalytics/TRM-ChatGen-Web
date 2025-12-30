@@ -11,7 +11,7 @@ import { Loader2, Save, Copy, Check } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { createClient } from '@/lib/supabase/client'
 
-export function ClientConfigForm({ clientId, initialConfig }: { clientId: string, initialConfig: any }) {
+export function ClientConfigForm({ clientId, initialConfig }: { clientId: string, initialConfig: Record<string, unknown> }) {
     // Flatten theme if it exists, otherwise use top-level or defaults
     const [config, setConfig] = useState(() => {
         const theme = initialConfig.theme || {}
@@ -66,7 +66,9 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
     const [copied, setCopied] = useState(false)
 
     // Helper for updating nested responsive config
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleResponsiveChange = (device: 'mobile' | 'laptop' | 'desktop', key: string, value: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setConfig((prev: any) => ({
             ...prev,
             responsive: {
@@ -79,7 +81,9 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
         }))
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleChange = (key: string, value: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setConfig((prev: any) => ({ ...prev, [key]: value }))
     }
 
@@ -108,8 +112,9 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
             const { data } = supabase.storage.from('brand_assets').getPublicUrl(filePath)
 
             handleChange('logo_url', data.publicUrl)
-        } catch (error: any) {
-            alert('Error uploading logo: ' + error.message + ". Make sure you have created the 'brand_assets' bucket in Supabase.")
+        } catch (error: unknown) {
+            const msg = error instanceof Error ? error.message : 'Unknown error';
+            alert('Error uploading logo: ' + msg + ". Make sure you have created the 'brand_assets' bucket in Supabase.")
         } finally {
             setUploadingLogo(false)
         }
@@ -151,6 +156,7 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
     const handleReset = () => {
         if (!confirm('Are you sure you want to reset all colors to default?')) return
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setConfig((prev: any) => ({
             ...prev,
             primary_color: '#000000',
@@ -211,224 +217,231 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
                                     <Input id="logo" type="file" onChange={handleLogoUpload} disabled={uploadingLogo} accept="image/*" />
                                 </div>
                             </div>
-                            <p className="text-xs text-muted-foreground">Upload a square image for best results.</p>
                         </div>
+                        <p className="text-xs text-muted-foreground">Upload a square image for best results.</p>
+                    </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="welcome_message">Welcome Message</Label>
-                            <Input
-                                id="welcome_message"
-                                value={config.welcome_message}
-                                onChange={(e) => handleChange('welcome_message', e.target.value)}
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="booking_link">Booking Calendar Link</Label>
-                            <Input
-                                id="booking_link"
-                                value={config.booking_link || ''}
-                                onChange={(e) => handleChange('booking_link', e.target.value)}
-                                placeholder="https://cal.com/..."
-                            />
-                        </div>
-
-                        {/* Colors Section */}
-                        <div className="grid grid-cols-2 gap-4 border-b pb-4">
-                            <div className="space-y-2">
-                                <Label>Primary Color</Label>
-                                <div className="flex items-center space-x-2">
-                                    <input type="color" value={config.primary_color} onChange={(e) => handleChange('primary_color', e.target.value)} className="h-9 w-9 cursor-pointer rounded border p-0 overflow-hidden" />
-                                    <Input value={config.primary_color} onChange={(e) => handleChange('primary_color', e.target.value)} className="font-mono text-xs" />
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Header Color</Label>
-                                <div className="flex items-center space-x-2">
-                                    <input type="color" value={config.header_color || '#000000'} onChange={(e) => handleChange('header_color', e.target.value)} className="h-9 w-9 cursor-pointer rounded border p-0 overflow-hidden" />
-                                    <Input value={config.header_color} onChange={(e) => handleChange('header_color', e.target.value)} className="font-mono text-xs" />
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Background Color</Label>
-                                <div className="flex items-center space-x-2">
-                                    <input type="color" value={config.background_color || '#ffffff'} onChange={(e) => handleChange('background_color', e.target.value)} className="h-9 w-9 cursor-pointer rounded border p-0 overflow-hidden" />
-                                    <Input value={config.background_color} onChange={(e) => handleChange('background_color', e.target.value)} className="font-mono text-xs" />
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Bot Message Background</Label>
-                                <div className="flex items-center space-x-2">
-                                    <input type="color" value={config.bot_msg_color || '#f3f4f6'} onChange={(e) => handleChange('bot_msg_color', e.target.value)} className="h-9 w-9 cursor-pointer rounded border p-0 overflow-hidden" />
-                                    <Input value={config.bot_msg_color} onChange={(e) => handleChange('bot_msg_color', e.target.value)} className="font-mono text-xs" />
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Bot Message Text</Label>
-                                <div className="flex items-center space-x-2">
-                                    <input type="color" value={config.bot_msg_text_color || '#000000'} onChange={(e) => handleChange('bot_msg_text_color', e.target.value)} className="h-9 w-9 cursor-pointer rounded border p-0 overflow-hidden" />
-                                    <Input value={config.bot_msg_text_color} onChange={(e) => handleChange('bot_msg_text_color', e.target.value)} className="font-mono text-xs" />
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Text Color</Label>
-                                <div className="flex items-center space-x-2">
-                                    <input type="color" value={config.text_color || '#000000'} onChange={(e) => handleChange('text_color', e.target.value)} className="h-9 w-9 cursor-pointer rounded border p-0 overflow-hidden" />
-                                    <Input value={config.text_color} onChange={(e) => handleChange('text_color', e.target.value)} className="font-mono text-xs" />
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Text Color</Label>
-                                <div className="flex items-center space-x-2">
-                                    <input type="color" value={config.text_color || '#000000'} onChange={(e) => handleChange('text_color', e.target.value)} className="h-9 w-9 cursor-pointer rounded border p-0 overflow-hidden" />
-                                    <Input value={config.text_color} onChange={(e) => handleChange('text_color', e.target.value)} className="font-mono text-xs" />
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Link Color</Label>
-                                <div className="flex items-center space-x-2">
-                                    <input type="color" value={config.link_color || '#000000'} onChange={(e) => handleChange('link_color', e.target.value)} className="h-9 w-9 cursor-pointer rounded border p-0 overflow-hidden" />
-                                    <Input value={config.link_color} onChange={(e) => handleChange('link_color', e.target.value)} className="font-mono text-xs" />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Responsive Settings Tabs */}
-                        <div className="space-y-2 pt-2">
-                            <Label>Responsive Configuration</Label>
-                            <Tabs
-                                defaultValue="desktop"
-                                className="w-full"
-                                value={activeTab}
-                                onValueChange={(value) => setActiveTab(value as any)}
-                            >
-                                <TabsList className="grid w-full grid-cols-3">
-                                    <TabsTrigger value="mobile">Mobile</TabsTrigger>
-                                    <TabsTrigger value="laptop">Laptop</TabsTrigger>
-                                    <TabsTrigger value="desktop">Desktop</TabsTrigger>
-                                </TabsList>
-
-                                {['mobile', 'laptop', 'desktop'].map((device) => (
-                                    <TabsContent key={device} value={device} className="space-y-4 pt-4">
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <Label>Bottom Spacing (px)</Label>
-                                                <Input type="number" value={config.responsive[device].bottom_px} onChange={(e) => handleResponsiveChange(device as any, 'bottom_px', parseInt(e.target.value))} />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label>Right Spacing (px)</Label>
-                                                <Input type="number" value={config.responsive[device].right_px} onChange={(e) => handleResponsiveChange(device as any, 'right_px', parseInt(e.target.value))} />
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <Label>Widget Width (px)</Label>
-                                                <Input type="number" value={config.responsive[device].width_px} onChange={(e) => handleResponsiveChange(device as any, 'width_px', parseInt(e.target.value))} />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label>Widget Height (px)</Label>
-                                                <Input type="number" value={config.responsive[device].height_px} onChange={(e) => handleResponsiveChange(device as any, 'height_px', parseInt(e.target.value))} />
-                                            </div>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label>Launcher Icon Size (px)</Label>
-                                            <Input type="number" value={config.responsive[device].launcher_size_px} onChange={(e) => handleResponsiveChange(device as any, 'launcher_size_px', parseInt(e.target.value))} />
-                                        </div>
-                                    </TabsContent>
-                                ))}
-                            </Tabs>
-                        </div>
-
-                        <div className="flex items-center space-x-2 pt-2">
-                            <input
-                                type="checkbox"
-                                id="is_active"
-                                checked={config.is_active}
-                                onChange={(e) => handleChange('is_active', e.target.checked)}
-                                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                            />
-                            <Label htmlFor="is_active">Widget Active</Label>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Installation Snippet</CardTitle>
-                        <CardDescription>Paste this code into the body of the client's website.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                        <div className="relative">
-                            <pre className="overflow-x-auto rounded-lg bg-slate-950 p-4 text-xs text-slate-50">
-                                <code>{snippet}</code>
-                            </pre>
-                        </div>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="w-full flex items-center justify-center gap-2"
-                            onClick={copyToClipboard}
-                        >
-                            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                            {copied ? "Copied!" : "Copy Snippet"}
-                        </Button>
-                    </CardContent>
-                </Card>
-
-                <div className="flex space-x-4">
-                    <Button type="submit" disabled={loading} className="flex-1">
-                        {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                        Save Changes
-                    </Button>
-                    <Button type="button" variant="destructive" onClick={handleReset} className="flex-1">
-                        Reset Defaults
-                    </Button>
-                </div>
-            </form>
-
-            {/* Preview Column */}
-            <div className="relative min-h-[600px] rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/50 dark:border-gray-800 dark:bg-gray-900/50">
-
-                {/* Simulated Website Content */}
-                <div className="absolute inset-0 p-8 opacity-10 pointer-events-none select-none flex flex-col gap-4">
-                    <div className="h-8 w-1/3 bg-gray-400 rounded"></div>
-                    <div className="h-4 w-full bg-gray-400 rounded"></div>
-                    <div className="h-4 w-full bg-gray-400 rounded"></div>
-                    <div className="h-4 w-2/3 bg-gray-400 rounded"></div>
-                    <div className="mt-8 h-32 w-full bg-gray-300 rounded-lg"></div>
-                </div>
-
-                {/* Visual Cue for Preview Area */}
-                <div className="absolute top-0 right-0 p-2 text-xs text-gray-400 font-mono">
-                    Preview: {activeTab}
-                </div>
-
-                {/* The Widget Preview */}
-                <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-xl">
-                    <div className="absolute inset-0 pointer-events-auto">
-                        <ChatWidget
-                            clientId={clientId}
-                            forcedDevice={activeTab} // Force the preview to use the currently selected tab configuration
-                            theme={{
-                                primary_color: previewConfig.primary_color,
-                                header_color: previewConfig.header_color,
-                                background_color: previewConfig.background_color,
-                                text_color: previewConfig.text_color,
-                                title_color: previewConfig.title_color,
-                                bot_msg_color: previewConfig.bot_msg_color,
-                                bot_msg_text_color: previewConfig.bot_msg_text_color,
-                                booking_link: previewConfig.booking_link, // Pass booking link
-                                link_color: previewConfig.link_color,
-                                responsive: previewConfig.responsive,
-                            }}
-                            botName={previewConfig.bot_name}
-                            welcomeMessage={previewConfig.welcome_message}
-                            logoUrl={previewConfig.logo_url} // Pass logo URL
+                    <div className="space-y-2">
+                        <Label htmlFor="welcome_message">Welcome Message</Label>
+                        <Input
+                            id="welcome_message"
+                            value={config.welcome_message}
+                            onChange={(e) => handleChange('welcome_message', e.target.value)}
                         />
                     </div>
-                </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="booking_link">Booking Calendar Link</Label>
+                        <Input
+                            id="booking_link"
+                            value={config.booking_link || ''}
+                            onChange={(e) => handleChange('booking_link', e.target.value)}
+                            placeholder="https://cal.com/..."
+                        />
+                    </div>
+
+                    {/* Colors Section */}
+                    <div className="grid grid-cols-2 gap-4 border-b pb-4">
+                        <div className="space-y-2">
+                            <Label>Primary Color</Label>
+                            <div className="flex items-center space-x-2">
+                                <input type="color" value={config.primary_color} onChange={(e) => handleChange('primary_color', e.target.value)} className="h-9 w-9 cursor-pointer rounded border p-0 overflow-hidden" />
+                                <Input value={config.primary_color} onChange={(e) => handleChange('primary_color', e.target.value)} className="font-mono text-xs" />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Header Color</Label>
+                            <div className="flex items-center space-x-2">
+                                <input type="color" value={config.header_color || '#000000'} onChange={(e) => handleChange('header_color', e.target.value)} className="h-9 w-9 cursor-pointer rounded border p-0 overflow-hidden" />
+                                <Input value={config.header_color} onChange={(e) => handleChange('header_color', e.target.value)} className="font-mono text-xs" />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Background Color</Label>
+                            <div className="flex items-center space-x-2">
+                                <input type="color" value={config.background_color || '#ffffff'} onChange={(e) => handleChange('background_color', e.target.value)} className="h-9 w-9 cursor-pointer rounded border p-0 overflow-hidden" />
+                                <Input value={config.background_color} onChange={(e) => handleChange('background_color', e.target.value)} className="font-mono text-xs" />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Bot Message Background</Label>
+                            <div className="flex items-center space-x-2">
+                                <input type="color" value={config.bot_msg_color || '#f3f4f6'} onChange={(e) => handleChange('bot_msg_color', e.target.value)} className="h-9 w-9 cursor-pointer rounded border p-0 overflow-hidden" />
+                                <Input value={config.bot_msg_color} onChange={(e) => handleChange('bot_msg_color', e.target.value)} className="font-mono text-xs" />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Bot Message Text</Label>
+                            <div className="flex items-center space-x-2">
+                                <input type="color" value={config.bot_msg_text_color || '#000000'} onChange={(e) => handleChange('bot_msg_text_color', e.target.value)} className="h-9 w-9 cursor-pointer rounded border p-0 overflow-hidden" />
+                                <Input value={config.bot_msg_text_color} onChange={(e) => handleChange('bot_msg_text_color', e.target.value)} className="font-mono text-xs" />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Text Color</Label>
+                            <div className="flex items-center space-x-2">
+                                <input type="color" value={config.text_color || '#000000'} onChange={(e) => handleChange('text_color', e.target.value)} className="h-9 w-9 cursor-pointer rounded border p-0 overflow-hidden" />
+                                <Input value={config.text_color} onChange={(e) => handleChange('text_color', e.target.value)} className="font-mono text-xs" />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Text Color</Label>
+                            <div className="flex items-center space-x-2">
+                                <input type="color" value={config.text_color || '#000000'} onChange={(e) => handleChange('text_color', e.target.value)} className="h-9 w-9 cursor-pointer rounded border p-0 overflow-hidden" />
+                                <Input value={config.text_color} onChange={(e) => handleChange('text_color', e.target.value)} className="font-mono text-xs" />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Link Color</Label>
+                            <div className="flex items-center space-x-2">
+                                <input type="color" value={config.link_color || '#000000'} onChange={(e) => handleChange('link_color', e.target.value)} className="h-9 w-9 cursor-pointer rounded border p-0 overflow-hidden" />
+                                <Input value={config.link_color} onChange={(e) => handleChange('link_color', e.target.value)} className="font-mono text-xs" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Responsive Settings Tabs */}
+                    <div className="space-y-2 pt-2">
+                        <Label>Responsive Configuration</Label>
+                        <Tabs
+                            defaultValue="desktop"
+                            className="w-full"
+                            value={activeTab}
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            onValueChange={(value) => setActiveTab(value as any)}
+                        >
+                            <TabsList className="grid w-full grid-cols-3">
+                                <TabsTrigger value="mobile">Mobile</TabsTrigger>
+                                <TabsTrigger value="laptop">Laptop</TabsTrigger>
+                                <TabsTrigger value="desktop">Desktop</TabsTrigger>
+                            </TabsList>
+
+                            {['mobile', 'laptop', 'desktop'].map((device) => (
+                                <TabsContent key={device} value={device} className="space-y-4 pt-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label>Bottom Spacing (px)</Label>
+                                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                                            <Input type="number" value={config.responsive[device].bottom_px} onChange={(e) => handleResponsiveChange(device as any, 'bottom_px', parseInt(e.target.value))} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Right Spacing (px)</Label>
+                                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                                            <Input type="number" value={config.responsive[device].right_px} onChange={(e) => handleResponsiveChange(device as any, 'right_px', parseInt(e.target.value))} />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label>Widget Width (px)</Label>
+                                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                                            <Input type="number" value={config.responsive[device].width_px} onChange={(e) => handleResponsiveChange(device as any, 'width_px', parseInt(e.target.value))} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Widget Height (px)</Label>
+                                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                                            <Input type="number" value={config.responsive[device].height_px} onChange={(e) => handleResponsiveChange(device as any, 'height_px', parseInt(e.target.value))} />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Launcher Icon Size (px)</Label>
+                                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                                        <Input type="number" value={config.responsive[device].launcher_size_px} onChange={(e) => handleResponsiveChange(device as any, 'launcher_size_px', parseInt(e.target.value))} />
+                                    </div>
+                                </TabsContent>
+                            ))}
+                        </Tabs>
+                    </div>
+
+                    <div className="flex items-center space-x-2 pt-2">
+                        <input
+                            type="checkbox"
+                            id="is_active"
+                            checked={config.is_active}
+                            onChange={(e) => handleChange('is_active', e.target.checked)}
+                            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <Label htmlFor="is_active">Widget Active</Label>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Installation Snippet</CardTitle>
+                    <CardDescription>Paste this code into the body of the client's website.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                    <div className="relative">
+                        <pre className="overflow-x-auto rounded-lg bg-slate-950 p-4 text-xs text-slate-50">
+                            <code>{snippet}</code>
+                        </pre>
+                    </div>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full flex items-center justify-center gap-2"
+                        onClick={copyToClipboard}
+                    >
+                        {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                        {copied ? "Copied!" : "Copy Snippet"}
+                    </Button>
+                </CardContent>
+            </Card>
+
+            <div className="flex space-x-4">
+                <Button type="submit" disabled={loading} className="flex-1">
+                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    Save Changes
+                </Button>
+                <Button type="button" variant="destructive" onClick={handleReset} className="flex-1">
+                    Reset Defaults
+                </Button>
+            </div>
+        </form>
+
+            {/* Preview Column */ }
+    <div className="relative min-h-[600px] rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/50 dark:border-gray-800 dark:bg-gray-900/50">
+
+        {/* Simulated Website Content */}
+        <div className="absolute inset-0 p-8 opacity-10 pointer-events-none select-none flex flex-col gap-4">
+            <div className="h-8 w-1/3 bg-gray-400 rounded"></div>
+            <div className="h-4 w-full bg-gray-400 rounded"></div>
+            <div className="h-4 w-full bg-gray-400 rounded"></div>
+            <div className="h-4 w-2/3 bg-gray-400 rounded"></div>
+            <div className="mt-8 h-32 w-full bg-gray-300 rounded-lg"></div>
+        </div>
+
+        {/* Visual Cue for Preview Area */}
+        <div className="absolute top-0 right-0 p-2 text-xs text-gray-400 font-mono">
+            Preview: {activeTab}
+        </div>
+
+        {/* The Widget Preview */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-xl">
+            <div className="absolute inset-0 pointer-events-auto">
+                <ChatWidget
+                    clientId={clientId}
+                    forcedDevice={activeTab} // Force the preview to use the currently selected tab configuration
+                    theme={{
+                        primary_color: previewConfig.primary_color,
+                        header_color: previewConfig.header_color,
+                        background_color: previewConfig.background_color,
+                        text_color: previewConfig.text_color,
+                        title_color: previewConfig.title_color,
+                        bot_msg_color: previewConfig.bot_msg_color,
+                        bot_msg_text_color: previewConfig.bot_msg_text_color,
+                        booking_link: previewConfig.booking_link, // Pass booking link
+                        link_color: previewConfig.link_color,
+                        responsive: previewConfig.responsive,
+                    }}
+                    botName={previewConfig.bot_name}
+                    welcomeMessage={previewConfig.welcome_message}
+                    logoUrl={previewConfig.logo_url} // Pass logo URL
+                />
             </div>
         </div>
+    </div>
+        </div >
     )
 }
