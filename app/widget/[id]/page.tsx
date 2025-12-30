@@ -18,6 +18,12 @@ export default async function WidgetPage({ params }: { params: Promise<{ id: str
 
     return (
         <div className="h-full w-full bg-transparent">
+            <style>{`
+                html, body {
+                    background-color: transparent !important;
+                    background: transparent !important;
+                }
+            `}</style>
             <ChatWidget
                 theme={config.theme}
                 botName={config.bot_name}

@@ -197,6 +197,25 @@ export function ChatWidget({
         }
     }, [forcedDevice]);
 
+    // Notify parent iframe about size changes
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        const message = {
+            type: 'TRM_CHAT_RESIZE',
+            isOpen,
+            config: {
+                width: width_px,
+                height: height_px,
+                launcherSize: launcher_size,
+                bottom: bottom_px,
+                right: right_px
+            }
+        };
+
+        window.parent.postMessage(message, '*');
+    }, [isOpen, width_px, height_px, launcher_size, bottom_px, right_px]);
+
     return (
         <div style={styles.container}>
             <AnimatePresence>

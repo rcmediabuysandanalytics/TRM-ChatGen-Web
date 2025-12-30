@@ -12,41 +12,53 @@
     const container = document.createElement('div');
     container.id = 'chat-widget-container';
     container.style.position = 'fixed';
-    container.style.bottom = '20px';
-    container.style.right = '20px';
-    container.style.zIndex = '9999';
-    container.style.width = '400px'; // Initial width just for the bubble? 
-    // Actually, to handle the 'pop out' and 'bubble' states nicely with an iframe,
-    // usually the iframe needs to resize. 
-    // For simplicity MVP: passing messages between iframe and parent to resize.
-    container.style.height = '600px';
-    container.style.maxHeight = '80vh';
-    container.style.width = '400px';
-    container.style.maxWidth = '90vw';
-    container.style.pointerEvents = 'none'; // Click through transparent parts
-
-    // We need to position it so the button allows clicking.
-    // The iframe itself will be transparent.
+    container.style.zIndex = '999999';
+    // Initial State: Bottom Right, small size for launcher
+    container.style.bottom = '0px';
+    container.style.right = '0px';
+    container.style.width = '120px'; // Sufficient for launcher + margin
+    container.style.height = '120px';
+    container.style.pointerEvents = 'none'; // Allow clicks to pass through container itself
 
     const iframe = document.createElement('iframe');
-    // Use current origin if relative, or hardcode production URL
     const domain = new URL(script.src).origin;
     iframe.src = `${domain}/widget/${clientId}`;
     iframe.style.width = '100%';
     iframe.style.height = '100%';
     iframe.style.border = 'none';
-    iframe.allow = 'clipboard-read; clipboard-write';
-    iframe.style.colorScheme = 'normal'; // Prevent site dark mode forcing 
+    iframe.style.backgroundColor = 'transparent'; // Ensure transparent
+    iframe.allow = 'clipboard-read; clipboard-write; autoplay';
+    iframe.style.pointerEvents = 'auto'; // Capture clicks inside the iframe
 
     container.appendChild(iframe);
     document.body.appendChild(container);
 
-    // Helper to handle messages for resizing (Optional refinement)
+    // Handle resizing messages from React App
     window.addEventListener('message', (event) => {
-        // Verify origin
+        // Security check: ensure message is from our domain
         if (event.origin !== domain) return;
-        // Handle resize events if you implement them in ChatWidget
-        // For now, we keep the container fixed size but use pointer-events
-        // to allow clicking through the empty space if it's transparent.
+
+        const { type, isOpen, config } = event.data;
+
+        if (type === 'TRM_CHAT_RESIZE') {
+            if (isOpen) {
+                // Widget is open: Expansion
+                // Calculate required size based on config + margins
+                // width_px + right_px + some buffer
+                const w = (config.width || 350) + (config.right || 20) + 40;
+                const h = (config.height || 500) + (config.bottom || 20) + 120; // +120 for launcher space below window
+
+                container.style.width = `${w}px`;
+                container.style.height = `${h}px`;
+                container.style.maxHeight = '100vh';
+                container.style.maxWidth = '100vw';
+            } else {
+                // Widget is closed: Launcher only
+                // launcherSize + margins
+                const size = (config.launcherSize || 60) + Math.max(config.bottom || 20, config.right || 20) + 40;
+                container.style.width = `${size}px`;
+                container.style.height = `${size}px`;
+            }
+        }
     });
 })();
