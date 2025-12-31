@@ -66,6 +66,13 @@
         isOpen: false
     };
 
+    // Tracks whether the widget is in modal mode (open or closing)
+    let isModal = false;
+
+    // Used to cancel transition restore timers
+    let restoreTransitionTimer = null;
+
+
     // Handle messages from React App
     window.addEventListener('message', (event) => {
         if (event.origin !== domain) return;
@@ -73,6 +80,10 @@
         const { type, isOpen, config } = event.data;
 
         if (type === 'TRM_CHAT_RESIZE') {
+
+            // ⛔ Ignore resize events while modal is open/closing
+            if (isModal) return;
+
             // Update last known config
             lastConfig = {
                 ...config,
@@ -107,6 +118,20 @@
         }
 
         if (type === 'TRM_CHAT_MODAL_OPEN') {
+            isModal = true;
+
+            if (restoreTransitionTimer) {
+                clearTimeout(restoreTransitionTimer);
+            }
+
+            // Disable transition for instant snap
+            container.style.transition = 'none';
+
+            // Force a browser reflow (Layout Thrashing) to ensure the 'transition: none' 
+            // is fully applied before we change the width/height. 
+            // Without this, the browser might batch the style changes and still animate.
+            void container.offsetWidth;
+
             container.style.width = '100vw';
             container.style.height = '100vh';
             container.style.top = '0';
@@ -119,6 +144,17 @@
         }
 
         if (type === 'TRM_CHAT_MODAL_CLOSE') {
+            // Keep modal lock during snap-back
+            if (restoreTransitionTimer) {
+                clearTimeout(restoreTransitionTimer);
+            }
+
+            // Disable transition for instant snap back
+            container.style.transition = 'none';
+
+            // Force reflow again to guarantee instant snap-back without animation
+            void container.offsetWidth;
+
             // Restore from lastConfig
             container.style.pointerEvents = 'none';
             container.style.top = 'auto';
@@ -139,6 +175,16 @@
                 container.style.width = `${size}px`;
                 container.style.height = `${size}px`;
             }
+
+            // Restore transition after a tick to allow the snap to happen first
+            restoreTransitionTimer = setTimeout(() => {
+                container.style.transition =
+                    'width 0.3s ease, height 0.3s ease, background-color 0.3s ease';
+
+                // ✅ Modal is fully closed now
+                isModal = false;
+            }, 150);
+
         }
     });
 })();

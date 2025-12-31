@@ -17,7 +17,7 @@ export default async function WidgetPage({ params }: { params: Promise<{ id: str
     if (!config) return notFound()
 
     return (
-        <div className="h-full w-full bg-transparent">
+        <div>
             <style>{`
                 html, body {
                     background-color: transparent !important;
