@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog"
 import { updateClientConfig } from '../../client-actions'
 import { ChatWidget } from '@/components/chat-widget'
-import { Loader2, Save, Copy, Check, Trash2, Upload, FileText, Plus, Edit2, File, X, CloudUpload } from 'lucide-react'
+import { Loader2, Save, Copy, Check, Trash2, FileText, Plus, Edit2, File, CloudUpload } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { createClient } from '@/lib/supabase/client'
 import { useDropzone } from 'react-dropzone'
@@ -170,14 +170,14 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
         setUploadingKb(true)
         const supabase = createClient()
 
-        let errors = []
+        const errors: string[] = []
 
         for (const file of acceptedFiles) {
             try {
                 const filePath = `${clientId}/${file.name}`
                 const { error } = await supabase.storage.from('knowledge_base').upload(filePath, file, { upsert: true })
                 if (error) throw error
-            } catch (error: any) {
+            } catch (error: unknown) {
                 console.error('Upload error:', error)
                 errors.push(file.name)
             }
@@ -208,12 +208,7 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
     }, [refreshFiles])
 
     // Original single file handler (kept for logo/legacy, but KB uses dropzone now)
-    const handleKbUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        // This function is no longer used for KB file uploads, as useDropzone handles it.
-        // It's kept as a placeholder if it were to be repurposed or if other file uploads
-        // (like logo upload) were to use a similar signature.
-        // For now, its body is effectively commented out as per instruction.
-    }
+
 
     const handleKbDelete = async (fileName: string) => {
         if (!confirm('Delete this file? This will also remove its training data.')) return
