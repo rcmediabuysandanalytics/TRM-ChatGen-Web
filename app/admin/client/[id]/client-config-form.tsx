@@ -291,30 +291,56 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
             `You are about to process ${filesToTrain.length} new/updated file(s). This will update the AI's knowledge.`,
             async () => {
                 setTraining(true)
-                try {
-                    const res = await fetch('/api/train', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            clientId,
-                            fileNames: filesToTrain // Only send new/updated files
-                        })
-                    })
+                let successCount = 0;
+                let failCount = 0;
+                const errors: string[] = [];
 
-                    // Handle non-JSON responses (crash, timeout, 500 HTML)
-                    const textResponse = await res.text();
-                    let data;
-                    try {
-                        data = JSON.parse(textResponse);
-                    } catch (e) {
-                        console.error("Non-JSON Response:", textResponse);
-                        throw new Error(`Server returned invalid response: ${textResponse.substring(0, 50)}...`);
+                try {
+                    // Process sequentially to avoid Vercel timeouts
+                    for (let i = 0; i < filesToTrain.length; i++) {
+                        const fileName = filesToTrain[i];
+                        const progressMsg = `Processing file ${i + 1} of ${filesToTrain.length}: ${fileName}...`;
+
+                        // Optional: You could add a toast or local state here to show specific file progress
+                        console.log(progressMsg);
+
+                        try {
+                            const res = await fetch('/api/train', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    clientId,
+                                    fileNames: [fileName] // Send one by one
+                                })
+                            })
+
+                            const textResponse = await res.text();
+                            let data;
+                            try {
+                                data = JSON.parse(textResponse);
+                            } catch (e) {
+                                throw new Error(`Server returned invalid response for ${fileName}: ${textResponse.substring(0, 50)}...`);
+                            }
+
+                            if (!res.ok) throw new Error(data.error || 'Training failed')
+                            successCount++;
+                        } catch (err) {
+                            console.error(`Failed to train ${fileName}:`, err);
+                            failCount++;
+                            errors.push(`${fileName}: ${err instanceof Error ? err.message : String(err)}`);
+                        }
                     }
 
-                    if (!res.ok) throw new Error(data.error || 'Training failed')
-
-                    showAlert('Training Complete', `Processed ${data.chunksProcessed} chunks from ${filesToTrain.length} files.`, 'success')
                     await refreshFiles()
+
+                    if (failCount === 0) {
+                        showAlert('Training Complete', `Successfully processed all ${successCount} files.`, 'success')
+                    } else if (successCount > 0) {
+                        showAlert('Partial Success', `Processed ${successCount} files. Failed: ${failCount}. \nErrors: ${errors.join('; ')}`, 'warning')
+                    } else {
+                        showAlert('Training Failed', `Failed to process any files. \nErrors: ${errors.join('; ')}`, 'destructive')
+                    }
+
                 } catch (error) {
                     console.error("Training Exception:", error);
                     showAlert('Training Error', (error instanceof Error ? error.message : 'Unknown error'), 'destructive')
