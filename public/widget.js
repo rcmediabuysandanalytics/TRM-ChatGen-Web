@@ -66,6 +66,37 @@
         isOpen: false
     };
 
+    // When true, we are waiting for the iframe to finish fading out before resizing
+    let waitingForCloseFade = false;
+
+    // Timer fallback in case iframe never responds
+    let closeFadeTimer = null;
+
+    // Restore container size based on lastConfig
+    function restoreFromLastConfig() {
+        container.style.pointerEvents = 'none';
+        container.style.top = 'auto';
+        container.style.left = 'auto';
+        container.style.bottom = '0px';
+        container.style.right = '0px';
+
+        if (lastConfig.isOpen) {
+            const w = (lastConfig.width || 350) + (lastConfig.right || 20) + 40;
+            const h = (lastConfig.height || 500) + (lastConfig.bottom || 20) + 120;
+            container.style.width = `${w}px`;
+            container.style.height = `${h}px`;
+            container.style.maxHeight = '100vh';
+            container.style.maxWidth = '100vw';
+        } else {
+            const size = (lastConfig.launcherSize || 60) + Math.max(lastConfig.bottom || 20, lastConfig.right || 20) + 40;
+            container.style.width = `${size}px`;
+            container.style.height = `${size}px`;
+            container.style.maxHeight = '100vh';
+            container.style.maxWidth = '100vw';
+        }
+    }
+
+
     // Tracks whether the widget is in modal mode (open or closing)
     let isModal = false;
 
@@ -80,6 +111,10 @@
         const { type, isOpen, config } = event.data;
 
         if (type === 'TRM_CHAT_RESIZE') {
+
+            // If we're waiting for fade-out to finish, ignore resizes to prevent flashes
+            if (waitingForCloseFade) return;
+
 
             // ⛔ Ignore resize events while modal is open/closing
             if (isModal) return;
@@ -144,47 +179,53 @@
         }
 
         if (type === 'TRM_CHAT_MODAL_CLOSE') {
-            // Keep modal lock during snap-back
-            if (restoreTransitionTimer) {
-                clearTimeout(restoreTransitionTimer);
+            // ✅ Step 1: DON'T resize yet.
+            // Ask iframe to fade out its UI first.
+            waitingForCloseFade = true;
+
+            // Cancel any previous fallback timer
+            if (closeFadeTimer) clearTimeout(closeFadeTimer);
+
+            // Tell iframe: start fade-out now
+            iframe.contentWindow.postMessage({ type: 'TRM_HOST_FADE_OUT_REQUEST' }, '*');
+
+            // Fallback: if iframe never replies, restore after 700ms anyway
+            closeFadeTimer = setTimeout(() => {
+                waitingForCloseFade = false;
+
+                container.style.transition = 'none';
+                void container.offsetWidth;
+
+                restoreFromLastConfig();
+
+                requestAnimationFrame(() => {
+                    container.style.transition = 'width 0.3s ease, height 0.3s ease, background-color 0.3s ease';
+                });
+            }, 700);
+        }
+
+        if (type === 'TRM_IFRAME_FADE_OUT_DONE') {
+            if (!waitingForCloseFade) return;
+
+            // Stop fallback timer
+            if (closeFadeTimer) {
+                clearTimeout(closeFadeTimer);
+                closeFadeTimer = null;
             }
 
-            // Disable transition for instant snap back
-            container.style.transition = 'none';
+            waitingForCloseFade = false;
 
-            // Force reflow again to guarantee instant snap-back without animation
+            // ✅ Step 2: Now it's safe to resize (panel is already invisible)
+            container.style.transition = 'none';
             void container.offsetWidth;
 
-            // Restore from lastConfig
-            container.style.pointerEvents = 'none';
-            container.style.top = 'auto';
-            container.style.left = 'auto';
-            container.style.bottom = '0px';
-            container.style.right = '0px';
+            restoreFromLastConfig();
 
-            // Restore dimensions
-            if (lastConfig.isOpen) {
-                const w = (lastConfig.width || 350) + (lastConfig.right || 20) + 40;
-                const h = (lastConfig.height || 500) + (lastConfig.bottom || 20) + 120;
-                container.style.width = `${w}px`;
-                container.style.height = `${h}px`;
-                container.style.maxHeight = '100vh';
-                container.style.maxWidth = '100vw';
-            } else {
-                const size = (lastConfig.launcherSize || 60) + Math.max(lastConfig.bottom || 20, lastConfig.right || 20) + 40;
-                container.style.width = `${size}px`;
-                container.style.height = `${size}px`;
-            }
-
-            // Restore transition after a tick to allow the snap to happen first
-            restoreTransitionTimer = setTimeout(() => {
-                container.style.transition =
-                    'width 0.3s ease, height 0.3s ease, background-color 0.3s ease';
-
-                // ✅ Modal is fully closed now
-                isModal = false;
-            }, 150);
-
+            requestAnimationFrame(() => {
+                container.style.transition = 'width 0.3s ease, height 0.3s ease, background-color 0.3s ease';
+            });
         }
+
+
     });
 })();

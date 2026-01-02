@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Toast, ToastProvider, ToastViewport, ToastTitle, ToastDescription } from '@/components/ui/toast';
+import { Toast, ToastProvider, ToastViewport, ToastTitle, ToastDescription, ToastClose } from '@/components/ui/toast';
 
 interface Message {
     role: 'user' | 'assistant';
@@ -128,12 +128,25 @@ export function ChatWidget({
     useEffect(() => {
         if (typeof window === 'undefined') return;
 
+        const handleMsg = (e: MessageEvent) => {
+            if (e.data?.type === 'TRM_HOST_FADE_OUT_REQUEST') {
+                // Determine what to close based on priority
+                if (activeFlow === 'booking') {
+                    setActiveFlow(null);
+                } else if (isOpen) {
+                    setIsOpen(false);
+                }
+            }
+        };
+
+        window.addEventListener('message', handleMsg);
+
         if (activeFlow === 'booking') {
             window.parent.postMessage({ type: 'TRM_CHAT_MODAL_OPEN' }, '*');
-        } else {
-            window.parent.postMessage({ type: 'TRM_CHAT_MODAL_CLOSE' }, '*');
         }
-    }, [activeFlow]);
+
+        return () => window.removeEventListener('message', handleMsg);
+    }, [activeFlow, isOpen]);
 
     const getResponsiveConfig = () => {
         if (theme?.responsive?.[activeDevice]) {
@@ -309,9 +322,8 @@ export function ChatWidget({
                 {/* Modal Overlay Layer */}
                 <AnimatePresence
                     onExitComplete={() => {
-                        // When the modal completely finishes fading out and unmounting from DOM,
-                        // safe to tell parent to shrink the iframe.
-                        window.parent.postMessage({ type: 'TRM_CHAT_MODAL_CLOSE' }, '*');
+                        // Handshake Step 3: Tell host we are invisible. Safe to resize now.
+                        window.parent.postMessage({ type: 'TRM_IFRAME_FADE_OUT_DONE' }, '*');
                     }}
                 >
                     {isBooking && (
@@ -329,7 +341,7 @@ export function ChatWidget({
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     <button
-                                        onClick={() => setActiveFlow(null)}
+                                        onClick={() => window.parent.postMessage({ type: 'TRM_CHAT_MODAL_CLOSE' }, '*')}
                                         className={`absolute top-2 right-2 p-1.5 bg-white/90 rounded-full shadow-sm hover:bg-gray-100 z-10 transition-all duration-300 ${highlightClose ? 'ring-2 ring-red-500 scale-110 bg-red-50' : ''}`}
                                     >
                                         <X className={`h-4 w-4 ${highlightClose ? 'text-red-500' : 'text-gray-600'}`} />
@@ -347,184 +359,197 @@ export function ChatWidget({
                 </AnimatePresence>
 
                 {/* Chat Window Layer */}
-                {isOpen && (
-                    <div
-                        style={styles.window}
-                        className="absolute bottom-full right-0 origin-bottom-right"
-                    >
-                        {/* Inline Premium Toast */}
-                        <ToastViewport className="absolute top-16 left-1/2 -translate-x-1/2 w-[90%] flex flex-col gap-2 z-50 focus:outline-none pointer-events-none p-0 m-0" />
-                        {toasts.map(function ({ id, title, description, action, ...props }) {
-                            return (
-                                <Toast
-                                    key={id}
-                                    {...props}
-                                    className="bg-red-500 text-white border-0 shadow-lg rounded-xl py-2 px-4 shadow-red-500/20 data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-top-full data-[state=open]:slide-in-from-top-full pointer-events-auto"
-                                >
-                                    <div className="grid gap-1">
-                                        {title && <ToastTitle className="text-xs font-bold">{title}</ToastTitle>}
-                                        {description && (
-                                            <ToastDescription className="text-xs opacity-90">{description}</ToastDescription>
+                <AnimatePresence
+                    onExitComplete={() => {
+                        // Handshake Step 3: Tell host we are invisible. Safe to resize now.
+                        window.parent.postMessage({ type: 'TRM_IFRAME_FADE_OUT_DONE' }, '*');
+                    }}
+                >
+                    {isOpen && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                            transition={{ duration: 0.2 }}
+                            style={styles.window}
+                            className="absolute bottom-full right-0 origin-bottom-right"
+                        >
+                            {/* Inline Premium Toast */}
+                            <ToastViewport className="absolute top-16 left-1/2 -translate-x-1/2 w-[90%] flex flex-col gap-2 z-50 focus:outline-none pointer-events-none p-0 m-0" />
+                            {toasts.map(function ({ id, title, description, action, ...props }) {
+                                return (
+                                    <Toast
+                                        key={id}
+                                        {...props}
+                                        className="bg-red-500 text-white border-0 shadow-lg rounded-xl py-2 px-4 shadow-red-500/20 data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-top-full data-[state=open]:slide-in-from-top-full pointer-events-auto"
+                                    >
+                                        <div className="grid gap-1">
+                                            {title && <ToastTitle className="text-xs font-bold">{title}</ToastTitle>}
+                                            {description && (
+                                                <ToastDescription className="text-xs opacity-90">{description}</ToastDescription>
+                                            )}
+                                        </div>
+                                        <ToastClose className="text-white hover:text-white/80" />
+                                    </Toast>
+                                )
+                            })}
+                            {/* Header */}
+                            <div
+                                className="flex items-center justify-between p-4 shrink-0"
+                                style={styles.header}
+                            >
+                                <div className="flex items-center space-x-3">
+                                    <div className="relative h-10 w-10 overflow-hidden rounded-full bg-white/20 flex items-center justify-center font-bold" style={{ color: title_color }}>
+                                        {logoUrl ? (
+                                            <div className="relative h-full w-full overflow-hidden rounded-full border border-border/50">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img src={logoUrl} alt={botName} className="h-full w-full object-cover" />
+                                            </div>
+                                        ) : (
+                                            botName.charAt(0)
                                         )}
                                     </div>
-                                </Toast>
-                            )
-                        })}
-                        {/* Header */}
-                        <div
-                            className="flex items-center justify-between p-4 shrink-0"
-                            style={styles.header}
-                        >
-                            <div className="flex items-center space-x-3">
-                                <div className="relative h-10 w-10 overflow-hidden rounded-full bg-white/20 flex items-center justify-center font-bold" style={{ color: title_color }}>
-                                    {logoUrl ? (
-                                        <div className="relative h-full w-full overflow-hidden rounded-full border border-border/50">
-                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img src={logoUrl} alt={botName} className="h-full w-full object-cover" />
+                                    <div style={{ color: title_color }}>
+                                        <h3 className="font-semibold text-sm">{botName}</h3>
+                                        <div className="flex items-center space-x-1">
+                                            <span className="relative flex h-2 w-2">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                                            </span>
+                                            <p className="text-xs opacity-90">Online</p>
                                         </div>
-                                    ) : (
-                                        botName.charAt(0)
-                                    )}
-                                </div>
-                                <div style={{ color: title_color }}>
-                                    <h3 className="font-semibold text-sm">{botName}</h3>
-                                    <div className="flex items-center space-x-1">
-                                        <span className="relative flex h-2 w-2">
-                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                                        </span>
-                                        <p className="text-xs opacity-90">Online</p>
                                     </div>
                                 </div>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-white hover:bg-white/20"
+                                    onClick={() => window.parent.postMessage({ type: 'TRM_CHAT_MODAL_CLOSE' }, '*')}
+                                >
+                                    <X className="h-5 w-5" />
+                                </Button>
                             </div>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-white hover:bg-white/20"
-                                onClick={() => setIsOpen(false)}
-                            >
-                                <X className="h-5 w-5" />
-                            </Button>
-                        </div>
 
-                        {/* Chat Area */}
-                        <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ backgroundColor: background_color }}>
-                            {/* Welcome Message */}
-                            <div className="flex justify-start flex-col space-y-2">
-                                <div className="max-w-[85%] rounded-2xl rounded-tl-none px-4 py-3 text-sm shadow-sm" style={styles.bubbleHost}>
-                                    {welcomeMessage}
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                    {booking_link && (
+                            {/* Chat Area */}
+                            <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ backgroundColor: background_color }}>
+                                {/* Welcome Message */}
+                                <div className="flex justify-start flex-col space-y-2">
+                                    <div className="max-w-[85%] rounded-2xl rounded-tl-none px-4 py-3 text-sm shadow-sm" style={styles.bubbleHost}>
+                                        {welcomeMessage}
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {booking_link && (
+                                            <QuickActionButton
+                                                label="Book Appointment"
+                                                onClick={() => setActiveFlow('booking')}
+                                                color={link_color}
+                                                disabled={!!activeFlow}
+                                            />
+                                        )}
                                         <QuickActionButton
-                                            label="Book Appointment"
-                                            onClick={() => setActiveFlow('booking')}
+                                            label="Leave a message"
+                                            onClick={() => {
+                                                setActiveFlow('lead');
+                                                setMessages(prev => [...prev, { role: 'assistant', content: '', type: 'lead_form' }]);
+                                            }}
                                             color={link_color}
                                             disabled={!!activeFlow}
                                         />
-                                    )}
-                                    <QuickActionButton
-                                        label="Leave a message"
-                                        onClick={() => {
-                                            setActiveFlow('lead');
-                                            setMessages(prev => [...prev, { role: 'assistant', content: '', type: 'lead_form' }]);
-                                        }}
-                                        color={link_color}
-                                        disabled={!!activeFlow}
-                                    />
-                                </div>
-                            </div>
-
-                            {messages.map((msg, i) => (
-                                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
-                                    {msg.type === 'lead_form' ? (
-                                        <div className="w-[90%] bg-white border rounded-xl p-4 shadow-sm" style={{ borderTopLeftRadius: 0 }}>
-                                            <div className="flex justify-between items-center mb-3">
-                                                <h4 className="font-semibold text-sm">Leave a message</h4>
-                                                <button
-                                                    onClick={() => {
-                                                        setActiveFlow(null);
-                                                        setMessages(prev => prev.filter((_, idx) => idx !== i));
-                                                    }}
-                                                    className="text-gray-400 hover:text-gray-600"
-                                                >
-                                                    <X className="h-4 w-4" />
-                                                </button>
-                                            </div>
-                                            <form onSubmit={handleLeadFormSubmit} className="space-y-3">
-                                                <Input name="name" placeholder="Name *" required className="text-sm" />
-                                                <Input name="email" type="email" placeholder="Email" className="text-sm" />
-                                                <Input name="phone" type="tel" placeholder="Phone Number" className="text-sm" />
-                                                <textarea
-                                                    className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                                    placeholder="How can we help? *"
-                                                    rows={3}
-                                                    required
-                                                />
-                                                <Button type="submit" className="w-full h-9 text-xs" style={{ backgroundColor: primary_color }}>
-                                                    Send Message
-                                                </Button>
-                                            </form>
-                                        </div>
-                                    ) : (
-                                        <div
-                                            className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-sm ${msg.role === 'user' ? 'rounded-tr-none' : 'rounded-tl-none'}`}
-                                            style={msg.role === 'user' ? styles.bubbleUser : styles.bubbleHost}
-                                        >
-                                            {msg.content}
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-
-                            {isLoading && (
-                                <div className="flex justify-start">
-                                    <div className="rounded-2xl rounded-tl-none px-4 py-3 bg-gray-100 dark:bg-gray-800">
-                                        <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
                                     </div>
                                 </div>
-                            )}
-                            <div ref={messagesEndRef} />
-                        </div>
 
-                        {/* Input Area */}
-                        <div className="border-t bg-white p-4 dark:bg-slate-900 shrink-0 relative">
-                            {activeFlow === 'lead' && (
-                                <div
-                                    className="absolute inset-0 z-10 bg-white/50 cursor-not-allowed"
-                                    onClick={() => {
-                                        toast({
-                                            title: "Please complete the form",
-                                            description: "You must submit or close the form before sending a new message.",
-                                            variant: "destructive",
-                                        });
-                                    }}
-                                />
-                            )}
-                            <form
-                                className="flex space-x-2"
-                                onSubmit={(e) => { e.preventDefault(); handleSend(); }}
-                            >
-                                <Input
-                                    value={input}
-                                    onChange={(e) => setInput(e.target.value)}
-                                    placeholder="Type a message..."
-                                    className="flex-1 rounded-full border-gray-200 dark:border-gray-700 focus-visible:ring-1"
-                                    disabled={activeFlow === 'lead'}
-                                />
-                                <Button
-                                    type="submit"
-                                    size="icon"
-                                    className="rounded-full h-10 w-10 shrink-0 transition-transform active:scale-95 hover:opacity-90"
-                                    style={{ backgroundColor: primary_color }}
-                                    disabled={isLoading || !input.trim() || activeFlow === 'lead'}
+                                {messages.map((msg, i) => (
+                                    <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
+                                        {msg.type === 'lead_form' ? (
+                                            <div className="w-[90%] bg-white border rounded-xl p-4 shadow-sm" style={{ borderTopLeftRadius: 0 }}>
+                                                <div className="flex justify-between items-center mb-3">
+                                                    <h4 className="font-semibold text-sm">Leave a message</h4>
+                                                    <button
+                                                        onClick={() => {
+                                                            setActiveFlow(null);
+                                                            setMessages(prev => prev.filter((_, idx) => idx !== i));
+                                                        }}
+                                                        className="text-gray-400 hover:text-gray-600"
+                                                    >
+                                                        <X className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                                <form onSubmit={handleLeadFormSubmit} className="space-y-3">
+                                                    <Input name="name" placeholder="Name *" required className="text-sm" />
+                                                    <Input name="email" type="email" placeholder="Email" className="text-sm" />
+                                                    <Input name="phone" type="tel" placeholder="Phone Number" className="text-sm" />
+                                                    <textarea
+                                                        className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                        placeholder="How can we help? *"
+                                                        rows={3}
+                                                        required
+                                                    />
+                                                    <Button type="submit" className="w-full h-9 text-xs" style={{ backgroundColor: primary_color }}>
+                                                        Send Message
+                                                    </Button>
+                                                </form>
+                                            </div>
+                                        ) : (
+                                            <div
+                                                className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-sm ${msg.role === 'user' ? 'rounded-tr-none' : 'rounded-tl-none'}`}
+                                                style={msg.role === 'user' ? styles.bubbleUser : styles.bubbleHost}
+                                            >
+                                                {msg.content}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+
+                                {isLoading && (
+                                    <div className="flex justify-start">
+                                        <div className="rounded-2xl rounded-tl-none px-4 py-3 bg-gray-100 dark:bg-gray-800">
+                                            <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
+                                        </div>
+                                    </div>
+                                )}
+                                <div ref={messagesEndRef} />
+                            </div>
+
+                            {/* Input Area */}
+                            <div className="border-t bg-white p-4 dark:bg-slate-900 shrink-0 relative">
+                                {activeFlow === 'lead' && (
+                                    <div
+                                        className="absolute inset-0 z-10 bg-white/50 cursor-not-allowed"
+                                        onClick={() => {
+                                            toast({
+                                                title: "Please complete the form",
+                                                description: "You must submit or close the form before sending a new message.",
+                                                variant: "destructive",
+                                                duration: 2000,
+                                            });
+                                        }}
+                                    />
+                                )}
+                                <form
+                                    className="flex space-x-2"
+                                    onSubmit={(e) => { e.preventDefault(); handleSend(); }}
                                 >
-                                    <Send className="h-4 w-4 text-white" />
-                                </Button>
-                            </form>
-                        </div>
-                    </div>
-                )}
+                                    <Input
+                                        value={input}
+                                        onChange={(e) => setInput(e.target.value)}
+                                        placeholder="Type a message..."
+                                        className="flex-1 rounded-full border-gray-200 dark:border-gray-700 focus-visible:ring-1"
+                                        disabled={activeFlow === 'lead'}
+                                    />
+                                    <Button
+                                        type="submit"
+                                        size="icon"
+                                        className="rounded-full h-10 w-10 shrink-0 transition-transform active:scale-95 hover:opacity-90"
+                                        style={{ backgroundColor: primary_color }}
+                                        disabled={isLoading || !input.trim() || activeFlow === 'lead'}
+                                    >
+                                        <Send className="h-4 w-4 text-white" />
+                                    </Button>
+                                </form>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
                 {/* Launcher Button */}
                 <div className="relative">
@@ -539,7 +564,14 @@ export function ChatWidget({
                     <motion.button
                         className="flex items-center justify-center rounded-full shadow-lg hover:opacity-90"
                         style={styles.primary}
-                        onClick={() => setIsOpen(!isOpen)}
+                        onClick={() => {
+                            if (isOpen) {
+                                // Start Close Handshake
+                                window.parent.postMessage({ type: 'TRM_CHAT_MODAL_CLOSE' }, '*');
+                            } else {
+                                setIsOpen(true);
+                            }
+                        }}
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
                     >
