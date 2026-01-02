@@ -229,8 +229,8 @@ export function ChatWidget({
             console.error('Chat Error:', error);
             toast({
                 title: "Error",
-                description: "Failed to send message. Please try again.",
-                variant: "destructive",
+                description: "Failed to send.",
+                className: "bg-zinc-800 text-white border-zinc-700 rounded-xl"
             });
             // Optional: Remove user message or show error state
         } finally {
@@ -458,7 +458,7 @@ export function ChatWidget({
                                     <Toast
                                         key={id}
                                         {...props}
-                                        className="bg-red-500 text-white border-0 shadow-lg rounded-xl py-2 px-4 shadow-red-500/20 data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-top-full data-[state=open]:slide-in-from-top-full pointer-events-auto"
+                                        className="bg-zinc-800 text-white border border-zinc-700 shadow-lg rounded-xl py-3 px-4 shadow-black/20 data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-top-full data-[state=open]:slide-in-from-top-full pointer-events-auto"
                                     >
                                         <div className="grid gap-1">
                                             {title && <ToastTitle className="text-xs font-bold">{title}</ToastTitle>}
@@ -466,7 +466,7 @@ export function ChatWidget({
                                                 <ToastDescription className="text-xs opacity-90">{description}</ToastDescription>
                                             )}
                                         </div>
-                                        <ToastClose className="text-white hover:text-white/80" />
+                                        <ToastClose className="text-zinc-400 hover:text-white" />
                                     </Toast>
                                 )
                             })}

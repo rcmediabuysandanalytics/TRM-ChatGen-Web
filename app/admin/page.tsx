@@ -68,7 +68,7 @@ export default async function AdminDashboard() {
                                     </TableCell>
                                     <TableCell className="text-right space-x-2">
                                         <Link href={`/admin/client/${client.id}`}>
-                                            <Button variant="ghost" size="sm">
+                                            <Button variant="ghost" size="sm" className="transition-all duration-300 hover:scale-105 active:scale-95 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-900/20 dark:hover:text-indigo-400">
                                                 <Settings className="mr-2 h-4 w-4" />
                                                 Manage
                                             </Button>

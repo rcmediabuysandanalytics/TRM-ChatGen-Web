@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog"
 import { updateClientConfig } from '../../client-actions'
 import { ChatWidget } from '@/components/chat-widget'
+import { PremiumAlertModal } from '@/components/ui/premium-alert-modal'
 import { Loader2, Save, Copy, Check, Trash2, FileText, Plus, Edit2, File, CloudUpload } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { createClient } from '@/lib/supabase/client'
@@ -154,6 +155,46 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
     const [editingFile, setEditingFile] = useState<{ name: string; content: string; isNew: boolean }>({ name: '', content: '', isNew: true })
     const [savingFile, setSavingFile] = useState(false)
 
+    // Premium Alert State
+    const [alertState, setAlertState] = useState<{
+        open: boolean;
+        title: string;
+        description: string;
+        variant: 'default' | 'destructive' | 'success' | 'warning';
+        onConfirm?: () => void;
+        confirmText?: string;
+        cancelText?: string;
+    }>({
+        open: false,
+        title: '',
+        description: '',
+        variant: 'default'
+    })
+
+    const showAlert = (title: string, description: string, variant: 'default' | 'destructive' | 'success' | 'warning' = 'default') => {
+        setAlertState({
+            open: true,
+            title,
+            description,
+            variant,
+            onConfirm: undefined,
+            confirmText: 'Okay'
+        })
+    }
+
+    const showConfirm = (title: string, description: string, onConfirm: () => void, variant: 'default' | 'destructive' | 'success' | 'warning' = 'default', confirmText = 'Continue') => {
+        setAlertState({
+            open: true,
+            title,
+            description,
+            variant,
+            onConfirm,
+            confirmText,
+            cancelText: 'Cancel'
+        })
+    }
+
+
     // Refetch helper
     const refreshFiles = useCallback(async () => {
         try {
@@ -186,7 +227,9 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
         await refreshFiles()
 
         if (errors.length > 0) {
-            alert(`Failed to upload: ${errors.join(', ')}`)
+            if (errors.length > 0) {
+                showAlert('Upload Failed', `Failed to upload: ${errors.join(', ')}`, 'destructive')
+            }
         }
 
         setUploadingKb(false)
@@ -210,54 +253,67 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
     // Original single file handler (kept for logo/legacy, but KB uses dropzone now)
 
 
-    const handleKbDelete = async (fileName: string) => {
-        if (!confirm('Delete this file? This will also remove its training data.')) return
-        const supabase = createClient()
-        try {
-            // 1. Delete text chunks (embeddings) for this file
-            await deleteKbEmbeddings(clientId, fileName)
+    const handleKbDelete = (fileName: string) => {
+        showConfirm(
+            'Delete File?',
+            'This will permanently delete the file and remove its training data from the AI memory. This action cannot be undone.',
+            async () => {
+                const supabase = createClient()
+                try {
+                    // 1. Delete text chunks (embeddings) for this file
+                    await deleteKbEmbeddings(clientId, fileName)
 
-            // 2. Delete actual file from storage
-            const { error } = await supabase.storage.from('knowledge_base').remove([`${clientId}/${fileName}`])
-            if (error) throw error
+                    // 2. Delete actual file from storage
+                    const { error } = await supabase.storage.from('knowledge_base').remove([`${clientId}/${fileName}`])
+                    if (error) throw error
 
-            await refreshFiles()
-        } catch (error) {
-            alert('Delete failed: ' + (error instanceof Error ? error.message : 'Unknown error'))
-        }
+                    await refreshFiles()
+                    showAlert('Success', 'File deleted successfully', 'success')
+                } catch (error) {
+                    showAlert('Delete Failed', (error instanceof Error ? error.message : 'Unknown error'), 'destructive')
+                }
+            },
+            'destructive',
+            'Delete File'
+        )
     }
 
-    const handleTrainDocs = async () => {
+    const handleTrainDocs = () => {
         // Smart Sync: Only train files that are NOT TRAINED
         const filesToTrain = kbFiles.filter(f => f.status === 'NOT TRAINED').map(f => f.name)
 
         if (filesToTrain.length === 0) {
-            return alert('All files are up to date! No training needed.')
+            return showAlert('Up to Date', 'All files are already processed and trained!', 'success')
         }
 
-        const confirmMsg = `Process ${filesToTrain.length} updated file(s)?\n\n${filesToTrain.join('\n')}`
-        if (!confirm(confirmMsg)) return
+        showConfirm(
+            'Process & Train Knowledge Base',
+            `You are about to process ${filesToTrain.length} new/updated file(s). This will update the AI's knowledge.`,
+            async () => {
+                setTraining(true)
+                try {
+                    const res = await fetch('/api/train', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            clientId,
+                            fileNames: filesToTrain // Only send new/updated files
+                        })
+                    })
+                    const data = await res.json()
+                    if (!res.ok) throw new Error(data.error || 'Training failed')
 
-        setTraining(true)
-        try {
-            const res = await fetch('/api/train', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    clientId,
-                    fileNames: filesToTrain // Only send new/updated files
-                })
-            })
-            const data = await res.json()
-            if (!res.ok) throw new Error(data.error || 'Training failed')
-
-            alert(`Training complete! Processed ${data.chunksProcessed} chunks from ${filesToTrain.length} files.`)
-            await refreshFiles()
-        } catch (error) {
-            alert('Training error: ' + (error instanceof Error ? error.message : 'Unknown error'))
-        } finally {
-            setTraining(false)
-        }
+                    showAlert('Training Complete', `Processed ${data.chunksProcessed} chunks from ${filesToTrain.length} files.`, 'success')
+                    await refreshFiles()
+                } catch (error) {
+                    showAlert('Training Error', (error instanceof Error ? error.message : 'Unknown error'), 'destructive')
+                } finally {
+                    setTraining(false)
+                }
+            },
+            'default',
+            'Start Processing'
+        )
     }
 
     const openNewNote = () => {
@@ -274,12 +330,14 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
             setEditingFile({ name: fileName.replace('.txt', ''), content: text, isNew: false })
             setIsEditorOpen(true)
         } catch (error) {
-            alert('Error reading file: ' + (error instanceof Error ? error.message : 'Unknown error'))
+
+            showAlert('Error', 'Error reading file: ' + (error instanceof Error ? error.message : 'Unknown error'), 'destructive')
         }
     }
 
+
     const handleSaveNote = async () => {
-        if (!editingFile.name || !editingFile.content) return alert('Name and content are required')
+        if (!editingFile.name || !editingFile.content) return showAlert('Validation Error', 'File name and content are required.', 'warning')
 
         setSavingFile(true)
         const supabase = createClient()
@@ -296,9 +354,9 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
             await refreshFiles()
 
             setIsEditorOpen(false)
-            alert('Note saved!')
+            showAlert('Saved', 'Note saved successfully!', 'success')
         } catch (error) {
-            alert('Save failed: ' + (error instanceof Error ? error.message : 'Unknown error'))
+            showAlert('Save Failed', (error instanceof Error ? error.message : 'Unknown error'), 'destructive')
         } finally {
             setSavingFile(false)
         }
@@ -349,10 +407,12 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
             handleChange('logo_url', data.publicUrl)
         } catch (error: unknown) {
             const msg = error instanceof Error ? error.message : 'Unknown error';
-            alert('Error uploading logo: ' + msg + ". Make sure you have created the 'brand_assets' bucket in Supabase.")
+            showAlert('Upload Failed', 'Error uploading logo: ' + msg + ". Make sure you have created the 'brand_assets' bucket in Supabase.", 'destructive')
         } finally {
             setUploadingLogo(false)
         }
+
+
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -382,55 +442,64 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
 
         const result = await updateClientConfig(clientId, formData)
         setLoading(false)
+
         if (result.error) {
-            alert('Error updating: ' + result.error)
+            showAlert('Update Failed', result.error, 'destructive')
         } else {
             setPreviewConfig(config)
+            showAlert('Success', 'Configuration updated successfully!', 'success')
         }
     }
 
     const handleReset = () => {
-        if (!confirm('Are you sure you want to reset all colors to default?')) return
-
-        setConfig((prev) => ({
-            ...prev,
-            primary_color: '#000000',
-            header_color: '#000000',
-            background_color: '#ffffff',
-            text_color: '#000000',
-            title_color: '#ffffff',
-            bot_msg_color: '#f3f4f6',
-            bot_msg_text_color: '#000000',
-            booking_link: '',
-            link_color: '#000000',
-            ghl_inbound_webhook: '',
-            responsive: {
-                mobile: {
-                    position: 'bottom-right',
-                    bottom_px: 20,
-                    right_px: 20,
-                    launcher_size_px: 50,
-                    width_px: 260,
-                    height_px: 450,
-                },
-                laptop: {
-                    position: 'bottom-right',
-                    bottom_px: 30,
-                    right_px: 30,
-                    launcher_size_px: 60,
-                    width_px: 350,
-                    height_px: 500,
-                },
-                desktop: {
-                    position: 'bottom-right',
-                    bottom_px: 40,
-                    right_px: 40,
-                    launcher_size_px: 70,
-                    width_px: 350,
-                    height_px: 500,
-                }
-            }
-        }))
+        showConfirm(
+            'Reset Colors?',
+            'Are you sure you want to reset all colors to their default values? This cannot be undone.',
+            () => {
+                setConfig((prev) => ({
+                    ...prev,
+                    primary_color: '#000000',
+                    header_color: '#000000',
+                    background_color: '#ffffff',
+                    text_color: '#000000',
+                    title_color: '#ffffff',
+                    bot_msg_color: '#f3f4f6',
+                    bot_msg_text_color: '#000000',
+                    booking_link: '',
+                    link_color: '#000000',
+                    ghl_inbound_webhook: '',
+                    responsive: {
+                        mobile: {
+                            position: 'bottom-right',
+                            bottom_px: 20,
+                            right_px: 20,
+                            launcher_size_px: 50,
+                            width_px: 260,
+                            height_px: 450,
+                        },
+                        laptop: {
+                            position: 'bottom-right',
+                            bottom_px: 30,
+                            right_px: 30,
+                            launcher_size_px: 60,
+                            width_px: 350,
+                            height_px: 500,
+                        },
+                        desktop: {
+                            position: 'bottom-right',
+                            bottom_px: 40,
+                            right_px: 40,
+                            launcher_size_px: 70,
+                            width_px: 350,
+                            height_px: 500,
+                        }
+                    }
+                }))
+                showAlert('Reset Complete', 'Colors have been reset to default values.', 'success')
+            },
+            'warning',
+            'Reset Colors'
+        )
     }
 
     const [origin, setOrigin] = useState('')
@@ -909,6 +978,17 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
                     </div>
                 </div>
             </div>
+            {/* Premium Alert Modal */}
+            <PremiumAlertModal
+                open={alertState.open}
+                onOpenChange={(open) => setAlertState(prev => ({ ...prev, open }))}
+                title={alertState.title}
+                description={alertState.description}
+                variant={alertState.variant}
+                onConfirm={alertState.onConfirm}
+                confirmText={alertState.confirmText}
+                cancelText={alertState.cancelText}
+            />
         </div>
     )
 }
