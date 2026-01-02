@@ -2,7 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
-// @ts-ignore
+// @ts-expect-error - pdf-parse lacks types
 import pdf from 'pdf-parse'
 
 export const maxDuration = 300 // 5 minutes timeout for processing
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
         let totalChunks = 0
-        let errors: string[] = []
+        const errors: string[] = []
 
         for (const fileName of fileNames) {
             console.log(`Processing file: ${fileName} for client: ${clientId}`)
@@ -72,8 +72,8 @@ export async function POST(req: Request) {
                 } else {
                     text = buffer.toString('utf-8')
                 }
-            } catch (e: any) {
-                const msg = `Error parsing ${fileName}: ${e.message}`
+            } catch (e) {
+                const msg = `Error parsing ${fileName}: ${e instanceof Error ? e.message : String(e)}`
                 console.error(msg)
                 errors.push(msg)
                 continue
@@ -121,9 +121,10 @@ export async function POST(req: Request) {
                     } else {
                         totalChunks++
                     }
-                } catch (e: any) {
+                } catch (e) {
                     console.error('Embedding/Insert error:', e)
-                    errors.push(`Processing failed for chunk in ${fileName}: ${e.message}`)
+                    const errMsg = e instanceof Error ? e.message : String(e)
+                    errors.push(`Processing failed for chunk in ${fileName}: ${errMsg}`)
                 }
             }
         }
@@ -142,9 +143,10 @@ export async function POST(req: Request) {
             errors: errors.length > 0 ? errors : undefined
         })
 
-    } catch (error: any) {
+    } catch (error) {
         console.error('Training Error:', error)
-        return NextResponse.json({ error: error.message }, { status: 500 })
+        const errMsg = error instanceof Error ? error.message : 'Unknown error'
+        return NextResponse.json({ error: errMsg }, { status: 500 })
     }
 }
 

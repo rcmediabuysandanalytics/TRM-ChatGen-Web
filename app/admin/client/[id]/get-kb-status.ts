@@ -36,7 +36,8 @@ export async function getKbFilesWithStatus(clientId: string): Promise<KbFileStat
     const trainedMap = new Map<string, number>()
 
     docs?.forEach(doc => {
-        const filename = (doc.metadata as any)?.filename
+        const metadata = doc.metadata as { filename?: string } | null
+        const filename = metadata?.filename
         if (filename) {
             const time = new Date(doc.created_at).getTime()
             const currentMax = trainedMap.get(filename) || 0

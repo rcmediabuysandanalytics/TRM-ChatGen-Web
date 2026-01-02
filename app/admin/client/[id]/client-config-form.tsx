@@ -227,8 +227,8 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
             if (error) throw error
 
             await refreshFiles()
-        } catch (error: any) {
-            alert('Delete failed: ' + error.message)
+        } catch (error) {
+            alert('Delete failed: ' + (error instanceof Error ? error.message : 'Unknown error'))
         }
     }
 
@@ -258,8 +258,8 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
 
             alert(`Training complete! Processed ${data.chunksProcessed} chunks from ${filesToTrain.length} files.`)
             await refreshFiles()
-        } catch (error: any) {
-            alert('Training error: ' + error.message)
+        } catch (error) {
+            alert('Training error: ' + (error instanceof Error ? error.message : 'Unknown error'))
         } finally {
             setTraining(false)
         }
@@ -278,8 +278,8 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
             const text = await data.text()
             setEditingFile({ name: fileName.replace('.txt', ''), content: text, isNew: false })
             setIsEditorOpen(true)
-        } catch (error: any) {
-            alert('Error reading file: ' + error.message)
+        } catch (error) {
+            alert('Error reading file: ' + (error instanceof Error ? error.message : 'Unknown error'))
         }
     }
 
@@ -302,8 +302,8 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
 
             setIsEditorOpen(false)
             alert('Note saved!')
-        } catch (error: any) {
-            alert('Save failed: ' + error.message)
+        } catch (error) {
+            alert('Save failed: ' + (error instanceof Error ? error.message : 'Unknown error'))
         } finally {
             setSavingFile(false)
         }
@@ -490,7 +490,6 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
                                     <div className="flex items-center space-x-4">
                                         {config.logo_url && (
                                             <div className="relative h-12 w-12 overflow-hidden rounded-full border shadow-sm">
-                                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img src={config.logo_url} alt="Logo" className="h-full w-full object-cover" />
                                             </div>
                                         )}
@@ -777,7 +776,7 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
                                             {training ? 'Processing & Training Brain...' : 'Process & Train Knowledge Base'}
                                         </Button>
                                         <p className="text-xs text-center text-muted-foreground mt-3">
-                                            This extracts text from all your files and updates the AI's long-term memory.
+                                            This extracts text from all your files and updates the AI&apos;s long-term memory.
                                         </p>
                                     </div>
                                 )}

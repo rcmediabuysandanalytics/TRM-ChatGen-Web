@@ -453,7 +453,7 @@ export function ChatWidget({
                         >
                             {/* Inline Premium Toast */}
                             <ToastViewport className="absolute top-16 left-1/2 -translate-x-1/2 w-[90%] flex flex-col gap-2 z-50 focus:outline-none pointer-events-none p-0 m-0" />
-                            {toasts.map(function ({ id, title, description, action, ...props }) {
+                            {toasts.map(function ({ id, title, description, ...props }) {
                                 return (
                                     <Toast
                                         key={id}
@@ -479,7 +479,6 @@ export function ChatWidget({
                                     <div className="relative h-10 w-10 overflow-hidden rounded-full bg-white/20 flex items-center justify-center font-bold" style={{ color: title_color }}>
                                         {logoUrl ? (
                                             <div className="relative h-full w-full overflow-hidden rounded-full border border-border/50">
-                                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img src={logoUrl} alt={botName} className="h-full w-full object-cover" />
                                             </div>
                                         ) : (

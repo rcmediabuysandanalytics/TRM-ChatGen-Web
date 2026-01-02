@@ -16,8 +16,8 @@ export async function deleteKbEmbeddings(clientId: string, fileName: string) {
 
         if (error) throw error
         return { success: true }
-    } catch (error: any) {
+    } catch (error) {
         console.error('Error deleting embeddings:', error)
-        return { error: error.message }
+        return { error: error instanceof Error ? error.message : 'Unknown error' }
     }
 }
