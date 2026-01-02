@@ -8,13 +8,37 @@ export async function deleteKbEmbeddings(clientId: string, fileName: string) {
     const supabase = createAdminClient()
 
     try {
-        const { error } = await supabase
+        console.log(`[Delete KB] Deleting embeddings for Client: ${clientId}, File: ${fileName}`)
+
+        // 1. Precise Match
+        const { error, count } = await supabase
             .from('rag_documents')
-            .delete()
-            .match({ client_id: clientId })
+            .delete({ count: 'exact' })
+            .eq('client_id', clientId)
             .filter('metadata->>filename', 'eq', fileName)
 
-        if (error) throw error
+        if (error) {
+            console.error('[Delete KB] Delete error:', error)
+            throw error
+        }
+
+        console.log(`[Delete KB] Deleted ${count} rows (Precision Match)`)
+
+        // 2. Fallback: URL encoded match (in case one side is %20 and other is space)
+        if (count === 0 && fileName.includes(' ')) {
+            // Maybe it was saved encoded?
+            const encodedName = encodeURIComponent(fileName)
+            const { count: countEncoded } = await supabase
+                .from('rag_documents')
+                .delete({ count: 'exact' })
+                .eq('client_id', clientId)
+                .filter('metadata->>filename', 'eq', encodedName)
+
+            if (countEncoded && countEncoded > 0) {
+                console.log(`[Delete KB] Deleted ${countEncoded} rows (Encoded Match: ${encodedName})`)
+            }
+        }
+
         return { success: true }
     } catch (error) {
         console.error('Error deleting embeddings:', error)

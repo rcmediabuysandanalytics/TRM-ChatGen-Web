@@ -300,12 +300,23 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
                             fileNames: filesToTrain // Only send new/updated files
                         })
                     })
-                    const data = await res.json()
+
+                    // Handle non-JSON responses (crash, timeout, 500 HTML)
+                    const textResponse = await res.text();
+                    let data;
+                    try {
+                        data = JSON.parse(textResponse);
+                    } catch (e) {
+                        console.error("Non-JSON Response:", textResponse);
+                        throw new Error(`Server returned invalid response: ${textResponse.substring(0, 50)}...`);
+                    }
+
                     if (!res.ok) throw new Error(data.error || 'Training failed')
 
                     showAlert('Training Complete', `Processed ${data.chunksProcessed} chunks from ${filesToTrain.length} files.`, 'success')
                     await refreshFiles()
                 } catch (error) {
+                    console.error("Training Exception:", error);
                     showAlert('Training Error', (error instanceof Error ? error.message : 'Unknown error'), 'destructive')
                 } finally {
                     setTraining(false)
@@ -542,6 +553,7 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
                                     <Label htmlFor="bot_name">Bot Name</Label>
                                     <Input
                                         id="bot_name"
+                                        suppressHydrationWarning
                                         value={config.bot_name}
                                         onChange={(e) => handleChange('bot_name', e.target.value)}
                                         className="transition-all focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -568,6 +580,7 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
                                     <Label htmlFor="welcome_message">Welcome Message</Label>
                                     <Input
                                         id="welcome_message"
+                                        suppressHydrationWarning
                                         value={config.welcome_message}
                                         onChange={(e) => handleChange('welcome_message', e.target.value)}
                                     />
@@ -578,8 +591,8 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
                                     <div className="space-y-2">
                                         <Label>Primary Color</Label>
                                         <div className="flex items-center space-x-2">
-                                            <input type="color" value={config.primary_color} onChange={(e) => handleChange('primary_color', e.target.value)} className="h-9 w-9 cursor-pointer rounded border p-0 overflow-hidden" />
-                                            <Input value={config.primary_color} onChange={(e) => handleChange('primary_color', e.target.value)} className="font-mono text-xs" />
+                                            <input type="color" suppressHydrationWarning value={config.primary_color} onChange={(e) => handleChange('primary_color', e.target.value)} className="h-9 w-9 cursor-pointer rounded border p-0 overflow-hidden" />
+                                            <Input suppressHydrationWarning value={config.primary_color} onChange={(e) => handleChange('primary_color', e.target.value)} className="font-mono text-xs" />
                                         </div>
                                     </div>
                                     <div className="space-y-2">
