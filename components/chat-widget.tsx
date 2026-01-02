@@ -415,7 +415,10 @@ export function ChatWidget({
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     <button
-                                        onClick={() => window.parent.postMessage({ type: 'TRM_CHAT_MODAL_CLOSE' }, '*')}
+                                        onClick={() => {
+                                            if (forcedDevice) setActiveFlow(null);
+                                            window.parent.postMessage({ type: 'TRM_CHAT_MODAL_CLOSE' }, '*');
+                                        }}
                                         className={`absolute top-2 right-2 p-1.5 bg-white/90 rounded-full shadow-sm hover:bg-gray-100 z-10 transition-all duration-300 ${highlightClose ? 'ring-2 ring-red-500 scale-110 bg-red-50' : ''}`}
                                     >
                                         <X className={`h-4 w-4 ${highlightClose ? 'text-red-500' : 'text-gray-600'}`} />
@@ -441,10 +444,10 @@ export function ChatWidget({
                 >
                     {isOpen && (
                         <motion.div
-                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                            initial={{ opacity: 0, y: 20, scale: 0.9 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                            transition={{ duration: 0.2 }}
+                            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+                            transition={{ type: "spring", stiffness: 350, damping: 25 }}
                             style={styles.window}
                             className="absolute bottom-full right-0 origin-bottom-right"
                         >
@@ -498,7 +501,10 @@ export function ChatWidget({
                                     variant="ghost"
                                     size="icon"
                                     className="h-8 w-8 text-white hover:bg-white/20"
-                                    onClick={() => window.parent.postMessage({ type: 'TRM_CHAT_MODAL_CLOSE' }, '*')}
+                                    onClick={() => {
+                                        if (forcedDevice) setIsOpen(false);
+                                        window.parent.postMessage({ type: 'TRM_CHAT_MODAL_CLOSE' }, '*');
+                                    }}
                                 >
                                     <X className="h-5 w-5" />
                                 </Button>
@@ -641,21 +647,22 @@ export function ChatWidget({
                         onClick={() => {
                             if (isOpen) {
                                 // Start Close Handshake
+                                if (forcedDevice) setIsOpen(false);
                                 window.parent.postMessage({ type: 'TRM_CHAT_MODAL_CLOSE' }, '*');
                             } else {
                                 setIsOpen(true);
                             }
                         }}
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
                     >
                         <AnimatePresence mode="wait">
                             {isOpen ? (
                                 <motion.div
                                     key="close"
-                                    initial={{ opacity: 0, rotate: -90 }}
-                                    animate={{ opacity: 1, rotate: 0 }}
-                                    exit={{ opacity: 0, rotate: 90 }}
+                                    initial={{ opacity: 0, rotate: -90, scale: 0.5 }}
+                                    animate={{ opacity: 1, rotate: 0, scale: 1 }}
+                                    exit={{ opacity: 0, rotate: -90, scale: 0.5 }}
                                     transition={{ duration: 0.2 }}
                                 >
                                     <X className="h-7 w-7 text-white" />
@@ -663,9 +670,9 @@ export function ChatWidget({
                             ) : (
                                 <motion.div
                                     key="open"
-                                    initial={{ opacity: 0, rotate: 90 }}
-                                    animate={{ opacity: 1, rotate: 0 }}
-                                    exit={{ opacity: 0, rotate: -90 }}
+                                    initial={{ opacity: 0, rotate: 90, scale: 0.5 }}
+                                    animate={{ opacity: 1, rotate: 0, scale: 1 }}
+                                    exit={{ opacity: 0, rotate: 90, scale: 0.5 }}
                                     transition={{ duration: 0.2 }}
                                 >
                                     <MessageCircle className="h-7 w-7 text-white" />
@@ -675,6 +682,6 @@ export function ChatWidget({
                     </motion.button>
                 </div>
             </div>
-        </ToastProvider>
+        </ToastProvider >
     );
 }

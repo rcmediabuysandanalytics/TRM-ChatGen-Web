@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     // 1. Verify Client exists and is active
     const { data: clientData, error: clientError } = await supabase
         .from('widget_configs')
-        .select('is_active, bot_name')
+        .select('is_active, bot_name, ghl_inbound_webhook') // Fetch GHL Webhook
         .eq('client_id', clientId)
         .single()
 
@@ -32,6 +32,24 @@ export async function POST(request: Request) {
             success: true,
             message: 'Lead received (Mock mode)'
         })
+    }
+
+    // 3. Forward to GoHighLevel (if configured)
+    if (clientData?.ghl_inbound_webhook) {
+        try {
+            // Fire and forget (don't block response on GHL)
+            fetch(clientData.ghl_inbound_webhook, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...formData,
+                    tags: ["chat-widget-lead"],
+                    source: "TRM Chat Widget"
+                })
+            }).catch(err => console.error('GHL Forward Error:', err));
+        } catch (e) {
+            console.error('GHL Sync Error', e);
+        }
     }
 
     try {

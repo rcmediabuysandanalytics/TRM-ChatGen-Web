@@ -42,6 +42,7 @@ export async function updateClientConfig(clientId: string, formData: FormData) {
             welcome_message: welcomeMessage,
             logo_url: formData.get("logo_url") as string, // Save logo URL
             is_active: isActive,
+            ghl_inbound_webhook: formData.get("ghl_inbound_webhook") as string,
             updated_at: new Date().toISOString(),
         })
         .eq("client_id", clientId);
