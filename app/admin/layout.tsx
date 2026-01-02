@@ -37,8 +37,9 @@ export default async function AdminLayout({
                 <div className="container flex h-14 items-center">
                     <div className="mr-4 flex">
                         <a className="mr-6 flex items-center space-x-2" href="/admin">
-                            <span className="font-bold sm:inline-block">
-                                ChatConfigs
+                            <img src="/trm-logo.png" alt="TRM Chat Generator" className="h-10 w-auto" />
+                            <span className="font-bold sm:inline-block hidden">
+                                TRM Chat Generator
                             </span>
                         </a>
                     </div>
