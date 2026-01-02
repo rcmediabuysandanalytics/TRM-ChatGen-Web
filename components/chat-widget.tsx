@@ -85,6 +85,7 @@ export function ChatWidget({
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [sessionId, setSessionId] = useState('');
     const [activeFlow, setActiveFlow] = useState<'lead' | 'booking' | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -97,6 +98,13 @@ export function ChatWidget({
     useEffect(() => {
         scrollToBottom();
     }, [messages, isOpen]);
+
+    // Initialize Session ID
+    useEffect(() => {
+        if (typeof window !== 'undefined' && !sessionId) {
+            setSessionId(crypto.randomUUID());
+        }
+    }, [sessionId]);
 
     // Handle handling device-specific config
     const searchParams = useSearchParams();
@@ -175,6 +183,20 @@ export function ChatWidget({
     const width_px = config.width_px ?? 350;
     const height_px = config.height_px ?? 500;
 
+    const handleBookingClick = () => {
+        setActiveFlow('booking');
+
+        // Log booking intent
+        fetch('/api/booking', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                clientId: _clientId,
+                sessionId: sessionId
+            })
+        }).catch(err => console.error('Failed to log booking:', err));
+    };
+
     const handleSend = async () => {
         if (!input.trim()) return;
 
@@ -183,26 +205,78 @@ export function ChatWidget({
         setInput('');
         setIsLoading(true);
 
-        // Simulate network delay or AI response
-        setTimeout(() => {
-            const botMsg: Message = { role: 'assistant', content: 'Thank you for your message. We will get back to you shortly.' };
+        try {
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: userMsg.content,
+                    clientId: _clientId,
+                    sessionId: sessionId
+                })
+            });
+
+            if (!response.ok) throw new Error('Failed to send message');
+
+            const data = await response.json();
+            const botMsg: Message = {
+                role: 'assistant',
+                content: data.reply || data.message || 'Sorry, I am having trouble connecting right now.'
+            };
+
             setMessages((prev) => [...prev, botMsg]);
+        } catch (error) {
+            console.error('Chat Error:', error);
+            toast({
+                title: "Error",
+                description: "Failed to send message. Please try again.",
+                variant: "destructive",
+            });
+            // Optional: Remove user message or show error state
+        } finally {
             setIsLoading(false);
-        }, 1000);
+        }
     };
 
-    const handleLeadFormSubmit = (e: React.FormEvent) => {
+    const handleLeadFormSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        // Simulate backend call
-        setTimeout(() => {
-            setIsLoading(false);
+
+        const formData = new FormData(e.target as HTMLFormElement);
+        const data = Object.fromEntries(formData.entries());
+
+        try {
+            const response = await fetch('/api/lead', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    clientId: _clientId,
+                    ...data
+                })
+            });
+
+            if (!response.ok) throw new Error('Failed to submit lead');
+
             setActiveFlow(null);
             setMessages(prev => [
                 ...prev,
                 { role: 'assistant', content: 'Thanks! We have received your message and will follow up shortly.' }
             ]);
-        }, 1500);
+            toast({
+                title: "Success",
+                description: "Message sent successfully!",
+                duration: 3000,
+            });
+        } catch (error) {
+            console.error('Lead Submit Error:', error);
+            toast({
+                title: "Error",
+                description: "Failed to submit form. Please try again.",
+                variant: "destructive",
+            });
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const isBooking = activeFlow === 'booking';
@@ -441,7 +515,7 @@ export function ChatWidget({
                                         {booking_link && (
                                             <QuickActionButton
                                                 label="Book Appointment"
-                                                onClick={() => setActiveFlow('booking')}
+                                                onClick={handleBookingClick}
                                                 color={link_color}
                                                 disabled={!!activeFlow}
                                             />

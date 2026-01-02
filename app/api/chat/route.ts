@@ -44,8 +44,12 @@ export async function POST(request: Request) {
     try {
         const n8nResponse = await fetch(N8N_WEBHOOK_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': process.env.N8N_API_KEY || ''
+            },
             body: JSON.stringify({
+                type: 'chat',
                 clientId,
                 sessionId,
                 message,
