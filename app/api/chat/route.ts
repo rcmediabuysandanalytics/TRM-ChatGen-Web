@@ -58,15 +58,19 @@ export async function POST(request: Request) {
         });
 
         if (!n8nResponse.ok) {
-            throw new Error('Failed to reach AI agent');
+            const errorText = await n8nResponse.text();
+            console.error(`N8N Error: ${n8nResponse.status} ${n8nResponse.statusText}`, errorText);
+            return NextResponse.json({
+                error: `AI Agent Error: ${n8nResponse.statusText}`,
+                details: errorText
+            }, { status: n8nResponse.status });
         }
 
         const data = await n8nResponse.json();
-        // Expecting { reply: "..." } from n8n
         return NextResponse.json(data);
 
     } catch (error) {
-        console.error('AI Error:', error);
-        return NextResponse.json({ error: 'AI service unavailable' }, { status: 500 });
+        console.error('AI Service Exception:', error);
+        return NextResponse.json({ error: 'AI service connection failed' }, { status: 500 });
     }
 }

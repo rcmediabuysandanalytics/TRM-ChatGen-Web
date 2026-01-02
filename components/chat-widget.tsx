@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
+import { MessageCircle, X, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useSearchParams } from 'next/navigation';
@@ -225,6 +225,14 @@ export function ChatWidget({
             };
 
             setMessages((prev) => [...prev, botMsg]);
+
+            // Handle "Leave Message" trigger from n8n
+            if (data['Leave Message'] === true) {
+                // Specific flag to open the lead form
+                setActiveFlow('lead');
+                // Optionally add a system message or placeholder if needed, 
+                // but the form itself is self-explanatory.
+            }
         } catch (error) {
             console.error('Chat Error:', error);
             toast({
@@ -581,8 +589,12 @@ export function ChatWidget({
 
                                 {isLoading && (
                                     <div className="flex justify-start">
-                                        <div className="rounded-2xl rounded-tl-none px-4 py-3 bg-gray-100 dark:bg-gray-800">
-                                            <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
+                                        <div className="rounded-2xl rounded-tl-none px-4 py-4 bg-gray-100 dark:bg-gray-800">
+                                            <div className="flex space-x-1">
+                                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                                            </div>
                                         </div>
                                     </div>
                                 )}
