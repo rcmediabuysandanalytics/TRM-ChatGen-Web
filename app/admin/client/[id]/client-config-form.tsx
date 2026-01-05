@@ -202,6 +202,13 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
         setConfig((prev) => ({ ...prev, [key]: value }))
     }
 
+    const handleColorChange = (key: keyof ClientConfigState, rawValue: string) => {
+        // Remove all hashtags and ensure string starts with exactly one #
+        const cleanHex = rawValue.replace(/#/g, '');
+        const value = '#' + cleanHex;
+        handleChange(key, value);
+    }
+
     const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files || e.target.files.length === 0) {
             return
@@ -402,49 +409,49 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
                                         <Label>Primary Color</Label>
                                         <div className="flex items-center space-x-2">
                                             <input type="color" suppressHydrationWarning value={config.primary_color} onChange={(e) => handleChange('primary_color', e.target.value)} className="h-9 w-9 cursor-pointer rounded border p-0 overflow-hidden" />
-                                            <Input suppressHydrationWarning value={config.primary_color} onChange={(e) => handleChange('primary_color', e.target.value)} className="font-mono text-xs" />
+                                            <Input suppressHydrationWarning value={config.primary_color} onChange={(e) => handleColorChange('primary_color', e.target.value)} className="font-mono text-xs" />
                                         </div>
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Header Color</Label>
                                         <div className="flex items-center space-x-2">
                                             <input type="color" value={config.header_color} onChange={(e) => handleChange('header_color', e.target.value)} className="h-9 w-9 cursor-pointer rounded border p-0 overflow-hidden" />
-                                            <Input value={config.header_color} onChange={(e) => handleChange('header_color', e.target.value)} className="font-mono text-xs" />
+                                            <Input value={config.header_color} onChange={(e) => handleColorChange('header_color', e.target.value)} className="font-mono text-xs" />
                                         </div>
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Background Color</Label>
                                         <div className="flex items-center space-x-2">
                                             <input type="color" value={config.background_color} onChange={(e) => handleChange('background_color', e.target.value)} className="h-9 w-9 cursor-pointer rounded border p-0 overflow-hidden" />
-                                            <Input value={config.background_color} onChange={(e) => handleChange('background_color', e.target.value)} className="font-mono text-xs" />
+                                            <Input value={config.background_color} onChange={(e) => handleColorChange('background_color', e.target.value)} className="font-mono text-xs" />
                                         </div>
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Bot Message Background</Label>
                                         <div className="flex items-center space-x-2">
                                             <input type="color" value={config.bot_msg_color} onChange={(e) => handleChange('bot_msg_color', e.target.value)} className="h-9 w-9 cursor-pointer rounded border p-0 overflow-hidden" />
-                                            <Input value={config.bot_msg_color} onChange={(e) => handleChange('bot_msg_color', e.target.value)} className="font-mono text-xs" />
+                                            <Input value={config.bot_msg_color} onChange={(e) => handleColorChange('bot_msg_color', e.target.value)} className="font-mono text-xs" />
                                         </div>
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Bot Message Text</Label>
                                         <div className="flex items-center space-x-2">
                                             <input type="color" value={config.bot_msg_text_color} onChange={(e) => handleChange('bot_msg_text_color', e.target.value)} className="h-9 w-9 cursor-pointer rounded border p-0 overflow-hidden" />
-                                            <Input value={config.bot_msg_text_color} onChange={(e) => handleChange('bot_msg_text_color', e.target.value)} className="font-mono text-xs" />
+                                            <Input value={config.bot_msg_text_color} onChange={(e) => handleColorChange('bot_msg_text_color', e.target.value)} className="font-mono text-xs" />
                                         </div>
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Text Color</Label>
                                         <div className="flex items-center space-x-2">
                                             <input type="color" value={config.text_color} onChange={(e) => handleChange('text_color', e.target.value)} className="h-9 w-9 cursor-pointer rounded border p-0 overflow-hidden" />
-                                            <Input value={config.text_color} onChange={(e) => handleChange('text_color', e.target.value)} className="font-mono text-xs" />
+                                            <Input value={config.text_color} onChange={(e) => handleColorChange('text_color', e.target.value)} className="font-mono text-xs" />
                                         </div>
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Link Color</Label>
                                         <div className="flex items-center space-x-2">
                                             <input type="color" value={config.link_color} onChange={(e) => handleChange('link_color', e.target.value)} className="h-9 w-9 cursor-pointer rounded border p-0 overflow-hidden" />
-                                            <Input value={config.link_color} onChange={(e) => handleChange('link_color', e.target.value)} className="font-mono text-xs" />
+                                            <Input value={config.link_color} onChange={(e) => handleColorChange('link_color', e.target.value)} className="font-mono text-xs" />
                                         </div>
                                     </div>
                                 </div>
