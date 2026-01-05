@@ -43,6 +43,7 @@ export async function updateClientConfig(clientId: string, formData: FormData) {
             logo_url: formData.get("logo_url") as string, // Save logo URL
             is_active: isActive,
             ghl_inbound_webhook: formData.get("ghl_inbound_webhook") as string,
+            google_drive_folder_id: formData.get("google_drive_folder_id") as string, // Save new field
             updated_at: new Date().toISOString(),
         })
         .eq("client_id", clientId);

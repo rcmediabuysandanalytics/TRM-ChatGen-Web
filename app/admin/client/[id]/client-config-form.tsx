@@ -17,9 +17,10 @@ import {
 import { updateClientConfig } from '../../client-actions'
 import { ChatWidget } from '@/components/chat-widget'
 import { PremiumAlertModal } from '@/components/ui/premium-alert-modal'
-import { Loader2, Save, Copy, Check, Trash2 } from 'lucide-react'
+import { Loader2, Save, Copy, Check, Trash2, AlertCircle } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/hooks/use-toast'
 
 // Define strict types for the configuration
 interface ResponsiveDeviceConfig {
@@ -56,6 +57,7 @@ interface ClientConfigState extends ThemeConfig {
     logo_url: string;
     is_active: boolean;
     ghl_inbound_webhook: string;
+    google_drive_folder_id: string; // New field
 }
 
 interface InitialConfigProps {
@@ -65,6 +67,7 @@ interface InitialConfigProps {
     logo_url?: string;
     is_active?: boolean;
     ghl_inbound_webhook?: string;
+    google_drive_folder_id?: string; // New field
     // Fallback top-level properties from legacy data
     primary_color?: string;
     header_color?: string;
@@ -95,6 +98,7 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
             logo_url: initialConfig.logo_url || '',
             is_active: initialConfig.is_active ?? true,
             ghl_inbound_webhook: initialConfig.ghl_inbound_webhook || '',
+            google_drive_folder_id: initialConfig.google_drive_folder_id || '', // Initialize
 
             primary_color: theme.primary_color || initialConfig.primary_color || '#000000',
             header_color: theme.header_color || initialConfig.header_color || '#000000',
@@ -141,6 +145,7 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
     const [uploadingLogo, setUploadingLogo] = useState(false)
     const [activeTab, setActiveTab] = useState<'mobile' | 'laptop' | 'desktop'>('desktop')
     const [copied, setCopied] = useState(false)
+    const { toast } = useToast()
 
     // Premium Alert State
     const [alertState, setAlertState] = useState<{
@@ -266,6 +271,7 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
         formData.append('welcome_message', config.welcome_message)
         formData.append('logo_url', config.logo_url)
         formData.append('ghl_inbound_webhook', config.ghl_inbound_webhook)
+        formData.append('google_drive_folder_id', config.google_drive_folder_id) // Append to form data
 
         if (config.is_active) formData.append('is_active', 'on')
 
@@ -297,6 +303,7 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
                     booking_link: '',
                     link_color: '#000000',
                     ghl_inbound_webhook: '',
+                    google_drive_folder_id: '',
                     responsive: {
                         mobile: {
                             position: 'bottom-right',
@@ -340,6 +347,15 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
     const snippet = `<script src="${origin || 'https://your-domain.com'}/widget.js?id=${clientId}"></script>`
 
     const copyToClipboard = () => {
+        if (!config.google_drive_folder_id || config.google_drive_folder_id.trim() === '') {
+            showAlert(
+                "Missing Requirement",
+                "You must add a Google Drive Folder ID before you can use the snippet.",
+                "destructive"
+            )
+            return
+        }
+
         navigator.clipboard.writeText(snippet)
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
@@ -456,8 +472,6 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
                                     </div>
                                 </div>
 
-
-
                                 <div className="flex items-center space-x-2 pt-2">
                                     <input
                                         type="checkbox"
@@ -554,6 +568,25 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
                                     />
                                     <p className="text-xs text-muted-foreground">If provided, all leads will be forwarded here directly.</p>
                                 </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="google_drive_folder_id">Google Drive Folder ID</Label>
+                                    <div className="relative">
+                                        <Input
+                                            id="google_drive_folder_id"
+                                            value={config.google_drive_folder_id}
+                                            onChange={(e) => handleChange('google_drive_folder_id', e.target.value)}
+                                            placeholder="e.g. 1a2b3c..."
+                                            className={`font-mono text-sm ${!config.google_drive_folder_id ? 'pr-10 border-red-300 focus-visible:ring-red-300' : ''}`}
+                                        />
+                                        {!config.google_drive_folder_id && (
+                                            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                                <AlertCircle className="h-5 w-5 text-red-500" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">Used by n8n workflows for file operations.</p>
+                                </div>
                             </CardContent>
                         </Card>
                     </TabsContent>
@@ -568,7 +601,7 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
                             </CardHeader>
                             <CardContent className="space-y-2">
                                 <div className="relative">
-                                    <pre className="overflow-x-auto rounded-lg bg-slate-950 p-4 text-xs text-slate-50">
+                                    <pre className={`overflow-x-auto rounded-lg bg-slate-950 p-4 text-xs text-slate-50 transition-all ${!config.google_drive_folder_id ? 'opacity-50 select-none grayscale cursor-not-allowed' : ''}`}>
                                         <code>{snippet}</code>
                                     </pre>
                                 </div>
