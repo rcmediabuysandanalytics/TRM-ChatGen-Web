@@ -17,13 +17,9 @@ import {
 import { updateClientConfig } from '../../client-actions'
 import { ChatWidget } from '@/components/chat-widget'
 import { PremiumAlertModal } from '@/components/ui/premium-alert-modal'
-import { Loader2, Save, Copy, Check, Trash2, FileText, Plus, Edit2, File, CloudUpload } from 'lucide-react'
+import { Loader2, Save, Copy, Check, Trash2 } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { createClient } from '@/lib/supabase/client'
-import { useDropzone } from 'react-dropzone'
-import { getKbFilesWithStatus, type KbFileStatus } from './get-kb-status'
-import { deleteKbEmbeddings } from './delete-kb-action'
-import { Badge } from '@/components/ui/badge'
 
 // Define strict types for the configuration
 interface ResponsiveDeviceConfig {
@@ -140,20 +136,11 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
         }
     })
 
-    // Separate state for the preview
     const [previewConfig, setPreviewConfig] = useState<ClientConfigState>(config)
     const [loading, setLoading] = useState(false)
     const [uploadingLogo, setUploadingLogo] = useState(false)
     const [activeTab, setActiveTab] = useState<'mobile' | 'laptop' | 'desktop'>('desktop')
     const [copied, setCopied] = useState(false)
-    const [kbFiles, setKbFiles] = useState<KbFileStatus[]>([])
-    const [uploadingKb, setUploadingKb] = useState(false)
-    const [training, setTraining] = useState(false)
-
-    // Editor State
-    const [isEditorOpen, setIsEditorOpen] = useState(false)
-    const [editingFile, setEditingFile] = useState<{ name: string; content: string; isNew: boolean }>({ name: '', content: '', isNew: true })
-    const [savingFile, setSavingFile] = useState(false)
 
     // Premium Alert State
     const [alertState, setAlertState] = useState<{
@@ -195,209 +182,7 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
     }
 
 
-    // Refetch helper
-    const refreshFiles = useCallback(async () => {
-        try {
-            const files = await getKbFilesWithStatus(clientId)
-            setKbFiles(files)
-        } catch (error) {
-            console.error('Error fetching KB files:', error)
-        }
-    }, [clientId])
 
-    // Custom onDrop handler for Drag & Drop
-    const onDrop = useCallback(async (acceptedFiles: File[]) => {
-        if (acceptedFiles.length === 0) return
-        setUploadingKb(true)
-        const supabase = createClient()
-
-        const errors: string[] = []
-
-        for (const file of acceptedFiles) {
-            try {
-                const filePath = `${clientId}/${file.name}`
-                const { error } = await supabase.storage.from('knowledge_base').upload(filePath, file, { upsert: true })
-                if (error) throw error
-            } catch (error: unknown) {
-                console.error('Upload error:', error)
-                errors.push(file.name)
-            }
-        }
-
-        await refreshFiles()
-
-        if (errors.length > 0) {
-            if (errors.length > 0) {
-                showAlert('Upload Failed', `Failed to upload: ${errors.join(', ')}`, 'destructive')
-            }
-        }
-
-        setUploadingKb(false)
-    }, [clientId, refreshFiles])
-
-    const { getRootProps, getInputProps, isDragActive } = useDropzone({
-        onDrop,
-        accept: {
-            'application/pdf': ['.pdf'],
-            'text/plain': ['.txt'],
-            'application/msword': ['.doc'],
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx']
-        }
-    })
-
-    // Fetch KB files on mount
-    useEffect(() => {
-        refreshFiles()
-    }, [refreshFiles])
-
-    // Original single file handler (kept for logo/legacy, but KB uses dropzone now)
-
-
-    const handleKbDelete = (fileName: string) => {
-        showConfirm(
-            'Delete File?',
-            'This will permanently delete the file and remove its training data from the AI memory. This action cannot be undone.',
-            async () => {
-                const supabase = createClient()
-                try {
-                    // 1. Delete text chunks (embeddings) for this file
-                    await deleteKbEmbeddings(clientId, fileName)
-
-                    // 2. Delete actual file from storage
-                    const { error } = await supabase.storage.from('knowledge_base').remove([`${clientId}/${fileName}`])
-                    if (error) throw error
-
-                    await refreshFiles()
-                    showAlert('Success', 'File deleted successfully', 'success')
-                } catch (error) {
-                    showAlert('Delete Failed', (error instanceof Error ? error.message : 'Unknown error'), 'destructive')
-                }
-            },
-            'destructive',
-            'Delete File'
-        )
-    }
-
-    const handleTrainDocs = () => {
-        // Smart Sync: Only train files that are NOT TRAINED
-        const filesToTrain = kbFiles.filter(f => f.status === 'NOT TRAINED').map(f => f.name)
-
-        if (filesToTrain.length === 0) {
-            return showAlert('Up to Date', 'All files are already processed and trained!', 'success')
-        }
-
-        showConfirm(
-            'Process & Train Knowledge Base',
-            `You are about to process ${filesToTrain.length} new/updated file(s). This will update the AI's knowledge.`,
-            async () => {
-                setTraining(true)
-                let successCount = 0;
-                let failCount = 0;
-                const errors: string[] = [];
-
-                try {
-                    // Process sequentially to avoid Vercel timeouts
-                    for (let i = 0; i < filesToTrain.length; i++) {
-                        const fileName = filesToTrain[i];
-                        const progressMsg = `Processing file ${i + 1} of ${filesToTrain.length}: ${fileName}...`;
-
-                        // Optional: You could add a toast or local state here to show specific file progress
-                        console.log(progressMsg);
-
-                        try {
-                            const res = await fetch('/api/train', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    clientId,
-                                    fileNames: [fileName] // Send one by one
-                                })
-                            })
-
-                            const textResponse = await res.text();
-                            let data;
-                            try {
-                                data = JSON.parse(textResponse);
-                            } catch (e) {
-                                throw new Error(`Server returned invalid response for ${fileName}: ${textResponse.substring(0, 50)}...`);
-                            }
-
-                            if (!res.ok) throw new Error(data.error || 'Training failed')
-                            successCount++;
-                        } catch (err) {
-                            console.error(`Failed to train ${fileName}:`, err);
-                            failCount++;
-                            errors.push(`${fileName}: ${err instanceof Error ? err.message : String(err)}`);
-                        }
-                    }
-
-                    await refreshFiles()
-
-                    if (failCount === 0) {
-                        showAlert('Training Complete', `Successfully processed all ${successCount} files.`, 'success')
-                    } else if (successCount > 0) {
-                        showAlert('Partial Success', `Processed ${successCount} files. Failed: ${failCount}. \nErrors: ${errors.join('; ')}`, 'warning')
-                    } else {
-                        showAlert('Training Failed', `Failed to process any files. \nErrors: ${errors.join('; ')}`, 'destructive')
-                    }
-
-                } catch (error) {
-                    console.error("Training Exception:", error);
-                    showAlert('Training Error', (error instanceof Error ? error.message : 'Unknown error'), 'destructive')
-                } finally {
-                    setTraining(false)
-                }
-            },
-            'default',
-            'Start Processing'
-        )
-    }
-
-    const openNewNote = () => {
-        setEditingFile({ name: '', content: '', isNew: true })
-        setIsEditorOpen(true)
-    }
-
-    const openEditNote = async (fileName: string) => {
-        const supabase = createClient()
-        try {
-            const { data, error } = await supabase.storage.from('knowledge_base').download(`${clientId}/${fileName}`)
-            if (error) throw error
-            const text = await data.text()
-            setEditingFile({ name: fileName.replace('.txt', ''), content: text, isNew: false })
-            setIsEditorOpen(true)
-        } catch (error) {
-
-            showAlert('Error', 'Error reading file: ' + (error instanceof Error ? error.message : 'Unknown error'), 'destructive')
-        }
-    }
-
-
-    const handleSaveNote = async () => {
-        if (!editingFile.name || !editingFile.content) return showAlert('Validation Error', 'File name and content are required.', 'warning')
-
-        setSavingFile(true)
-        const supabase = createClient()
-
-        let fileName = editingFile.name
-        if (!fileName.endsWith('.txt')) fileName += '.txt'
-
-        try {
-            const blob = new Blob([editingFile.content], { type: 'text/plain' })
-            const { error } = await supabase.storage.from('knowledge_base').upload(`${clientId}/${fileName}`, blob, { upsert: true })
-            if (error) throw error
-
-            // Refresh list
-            await refreshFiles()
-
-            setIsEditorOpen(false)
-            showAlert('Saved', 'Note saved successfully!', 'success')
-        } catch (error) {
-            showAlert('Save Failed', (error instanceof Error ? error.message : 'Unknown error'), 'destructive')
-        } finally {
-            setSavingFile(false)
-        }
-    }
 
     // Helper for updating nested responsive config
     const handleResponsiveChange = (device: 'mobile' | 'laptop' | 'desktop', key: keyof ResponsiveDeviceConfig, value: number | string) => {
@@ -564,7 +349,6 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
                         <TabsTrigger value="general">General</TabsTrigger>
                         <TabsTrigger value="positioning">Positioning</TabsTrigger>
                         <TabsTrigger value="credentials">Credentials</TabsTrigger>
-                        <TabsTrigger value="knowledge">KB</TabsTrigger>
                         <TabsTrigger value="snippet">Snippet</TabsTrigger>
                     </TabsList>
 
@@ -767,164 +551,7 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
                         </Card>
                     </TabsContent>
 
-                    <TabsContent value="knowledge" className="space-y-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Knowledge Base</CardTitle>
-                                <CardDescription>Upload documents for the AI to reference.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-6">
-                                {/* Drag & Drop Zone */}
-                                <div
-                                    {...getRootProps()}
-                                    className={`
-                                        border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all
-                                        ${isDragActive ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' : 'border-gray-200 dark:border-gray-800 hover:border-indigo-400 hover:bg-gray-50 dark:hover:bg-gray-900/50'}
-                                    `}
-                                >
-                                    <input {...getInputProps()} />
-                                    <div className="flex flex-col items-center gap-3">
-                                        <div className="p-4 bg-indigo-100 dark:bg-indigo-900/30 rounded-full text-indigo-600 dark:text-indigo-400">
-                                            {uploadingKb ? <Loader2 className="h-8 w-8 animate-spin" /> : <CloudUpload className="h-8 w-8" />}
-                                        </div>
-                                        <div className="space-y-1">
-                                            <p className="text-sm font-medium">Click to upload or drag and drop</p>
-                                            <p className="text-xs text-muted-foreground">PDF, DOC, TXT, MD (max 10MB)</p>
-                                        </div>
-                                    </div>
-                                </div>
 
-                                {/* Text Entry Button */}
-                                <div className="flex justify-between items-center pb-2 border-b">
-                                    <Label className="text-base">Knowledge Assets</Label>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={openNewNote}
-                                        className="transition-all active:scale-95 text-indigo-600 border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 dark:hover:bg-indigo-900/20"
-                                    >
-                                        <Plus className="mr-2 h-4 w-4" /> Create Text Entry
-                                    </Button>
-                                </div>
-
-                                {/* File List */}
-                                <div className="grid gap-3">
-                                    {kbFiles.length === 0 ? (
-                                        <div className="text-center py-12 text-muted-foreground bg-gray-50 dark:bg-gray-900/20 rounded-xl border border-dashed">
-                                            <FileText className="h-8 w-8 mx-auto mb-3 opacity-20" />
-                                            <p>No knowledge assets yet.</p>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-2">
-                                            {kbFiles.map((file) => (
-                                                <div key={file.name} className="flex items-center justify-between p-3 rounded-lg border bg-card hover:shadow-sm transition-all group">
-                                                    <div className="flex items-center gap-3 overflow-hidden flex-1">
-                                                        <div className={`p-2 rounded-md ${file.name.endsWith('.txt') ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-500' : 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-500'}`}>
-                                                            {file.name.endsWith('.txt') ? <FileText className="h-4 w-4" /> : <File className="h-4 w-4" />}
-                                                        </div>
-                                                        <div className="truncate flex flex-col items-start gap-1">
-                                                            <p className="text-sm font-medium truncate">{file.name}</p>
-                                                            <div className="flex items-center gap-2">
-                                                                <p className="text-[10px] text-muted-foreground uppercase">{file.name.split('.').pop()} File</p>
-                                                                <Badge
-                                                                    variant={file.status === 'TRAINED' ? 'default' : 'secondary'}
-                                                                    className={`text-[10px] h-5 ${file.status === 'TRAINED'
-                                                                        ? 'bg-green-100 text-green-700 hover:bg-green-100 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800'
-                                                                        : 'bg-red-100 text-red-700 hover:bg-red-100 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800'
-                                                                        }`}
-                                                                >
-                                                                    {file.status}
-                                                                </Badge>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        {file.name.endsWith('.txt') && (
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                type="button"
-                                                                onClick={() => openEditNote(file.name)}
-                                                                className="h-8 w-8 text-muted-foreground hover:text-primary"
-                                                            >
-                                                                <Edit2 className="h-4 w-4" />
-                                                            </Button>
-                                                        )}
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            type="button"
-                                                            onClick={() => handleKbDelete(file.name)}
-                                                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-
-                                {kbFiles.length > 0 && (
-                                    <div className="pt-4 border-t">
-                                        <Button
-                                            type="button"
-                                            onClick={handleTrainDocs}
-                                            disabled={training}
-                                            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-md hover:shadow-lg transition-all active:scale-95"
-                                        >
-                                            {training ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CloudUpload className="mr-2 h-4 w-4" />}
-                                            {training ? 'Processing & Training Brain...' : 'Process & Train Knowledge Base'}
-                                        </Button>
-                                        <p className="text-xs text-center text-muted-foreground mt-3">
-                                            This extracts text from all your files and updates the AI&apos;s long-term memory.
-                                        </p>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-
-                    {/* Editor Dialog */}
-                    <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
-                        <DialogContent className="sm:max-w-[600px]">
-                            <DialogHeader>
-                                <DialogTitle>{editingFile.isNew ? 'New Knowledge Note' : 'Edit Note'}</DialogTitle>
-                                <DialogDescription>Create text content for the AI to learn from.</DialogDescription>
-                            </DialogHeader>
-                            <div className="grid gap-4 py-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="filename">File Name</Label>
-                                    <Input
-                                        id="filename"
-                                        value={editingFile.name}
-                                        onChange={(e) => setEditingFile({ ...editingFile, name: e.target.value })}
-                                        placeholder="e.g. pricing-2024"
-                                        disabled={!editingFile.isNew} // Lock name for editing to avoid duplicates/confusion
-                                    />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="content">Content</Label>
-                                    <Textarea
-                                        id="content"
-                                        value={editingFile.content}
-                                        onChange={(e) => setEditingFile({ ...editingFile, content: e.target.value })}
-                                        className="h-[300px] font-mono text-sm"
-                                        placeholder="Type your knowledge base content here..."
-                                    />
-                                </div>
-                            </div>
-                            <DialogFooter>
-                                <Button variant="outline" onClick={() => setIsEditorOpen(false)}>Cancel</Button>
-                                <Button onClick={handleSaveNote} disabled={savingFile}>
-                                    {savingFile && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Save Note
-                                </Button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
 
                     <TabsContent value="snippet" className="space-y-6">
                         <Card>
