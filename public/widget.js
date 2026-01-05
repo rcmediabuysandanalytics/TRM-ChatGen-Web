@@ -24,10 +24,12 @@
     // Initial State: Bottom Right, small size for launcher
     container.style.bottom = '0px';
     container.style.right = '0px';
+    container.style.top = 'auto';
+    container.style.left = 'auto';
     container.style.width = '120px';
     container.style.height = '120px';
     container.style.pointerEvents = 'none';
-    container.style.transition = 'width 0.3s ease, height 0.3s ease, background-color 0.3s ease';
+    // Transition applied later to prevent initial diagonal drift
 
     const iframe = document.createElement('iframe');
     const domain = new URL(script.src).origin;
@@ -45,6 +47,12 @@
 
     container.appendChild(iframe);
     document.body.appendChild(container);
+
+    // Apply transition AFTER the element is firmly anchored in the DOM.
+    // This prevents the browser from interpolating from a default (0,0) position.
+    requestAnimationFrame(() => {
+        container.style.transition = 'width 0.3s ease, height 0.3s ease, background-color 0.3s ease';
+    });
 
     // Handle Window Resize to notify widget
     let timeout;
