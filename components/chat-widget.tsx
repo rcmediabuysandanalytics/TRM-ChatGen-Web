@@ -13,6 +13,7 @@ interface Message {
     role: 'user' | 'assistant';
     content: string;
     type?: 'text' | 'lead_form';
+    showLeaveMessageAction?: boolean;
 }
 
 interface ResponsiveConfig {
@@ -226,12 +227,10 @@ export function ChatWidget({
 
             setMessages((prev) => [...prev, botMsg]);
 
-            // Handle "Leave Message" trigger from n8n
-            if (data['Leave Message'] === true) {
-                // Specific flag to open the lead form
-                setActiveFlow('lead');
-                // Optionally add a system message or placeholder if needed, 
-                // but the form itself is self-explanatory.
+            // Handle "Leave Message" trigger from n8n (Robust check)
+            if (shouldTriggerLeadForm(data)) {
+                console.log('Triggering Leave Message Action based on AI response:', data);
+                botMsg.showLeaveMessageAction = true;
             }
         } catch (error) {
             console.error('Chat Error:', error);
@@ -582,6 +581,19 @@ export function ChatWidget({
                                                 style={msg.role === 'user' ? styles.bubbleUser : styles.bubbleHost}
                                             >
                                                 {msg.content}
+                                                {msg.showLeaveMessageAction && (
+                                                    <div className="mt-3">
+                                                        <QuickActionButton
+                                                            label="Leave a message"
+                                                            onClick={() => {
+                                                                setActiveFlow('lead');
+                                                                setMessages(prev => [...prev, { role: 'assistant', content: '', type: 'lead_form' }]);
+                                                            }}
+                                                            color={link_color}
+                                                            disabled={!!activeFlow}
+                                                        />
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                     </div>
@@ -695,4 +707,23 @@ export function ChatWidget({
             </div>
         </ToastProvider >
     );
+}
+
+// Helper to robustly check for "Leave Message" flag
+function shouldTriggerLeadForm(data: unknown): boolean {
+    if (!data || typeof data !== 'object') return false;
+
+    const record = data as Record<string, unknown>;
+    // Check various key casings
+    const keys = ['Leave Message', 'leaveMessage', 'leave_message', 'LeaveMessage'];
+
+    for (const key of keys) {
+        const val = record[key];
+        // Check for boolean true
+        if (val === true) return true;
+        // Check for string "true" (case-insensitive)
+        if (typeof val === 'string' && val.toLowerCase() === 'true') return true;
+    }
+
+    return false;
 }
