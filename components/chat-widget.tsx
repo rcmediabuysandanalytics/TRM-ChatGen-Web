@@ -336,7 +336,7 @@ export function ChatWidget({
             backgroundColor: background_color,
             color: text_color,
             marginBottom: '16px',
-            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+            boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.25), 0 10px 30px -5px rgb(0 0 0 / 0.5)', // Increased shadow
             borderRadius: '1rem',
             overflow: 'hidden',
             display: 'flex',
@@ -665,7 +665,7 @@ export function ChatWidget({
                     )}
 
                     <motion.button
-                        className="flex items-center justify-center rounded-full shadow-lg hover:opacity-90"
+                        className="flex items-center justify-center rounded-full shadow-2xl hover:opacity-90 transition-shadow duration-300"
                         style={styles.primary}
                         onClick={() => {
                             if (isOpen) {
