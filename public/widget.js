@@ -2,6 +2,7 @@
     const script = document.currentScript;
     const scriptUrl = new URL(script.src);
     const clientId = scriptUrl.searchParams.get('id');
+    const domain = scriptUrl.origin;
 
     if (!clientId) {
         console.error('ChatWidget: No client ID provided.');
@@ -48,7 +49,7 @@
         // Transition applied later to prevent initial diagonal drift
 
         const iframe = document.createElement('iframe');
-        const domain = new URL(script.src).origin;
+        // domain is defined in the outer scope
 
         // Pass initial device type
         const initialDevice = getDeviceType();
