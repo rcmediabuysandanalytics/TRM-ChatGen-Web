@@ -16,6 +16,11 @@ export default async function WidgetPage({ params }: { params: Promise<{ id: str
 
     if (!config) return notFound()
 
+    // Server-side check: if not active, do not render
+    if (config.is_active === false) {
+        return null;
+    }
+
     return (
         <div>
             <style>{`

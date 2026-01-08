@@ -16,43 +16,65 @@
         return 'desktop';
     };
 
-    // Create Iframe Container
-    const container = document.createElement('div');
-    container.id = 'chat-widget-container';
-    container.style.position = 'fixed';
-    container.style.zIndex = '999999';
-    // Initial State: Bottom Right, small size for launcher
-    container.style.bottom = '0px';
-    container.style.right = '0px';
-    container.style.top = 'auto';
-    container.style.left = 'auto';
-    container.style.width = '120px';
-    container.style.height = '120px';
-    container.style.pointerEvents = 'none';
-    // Transition applied later to prevent initial diagonal drift
+    // Check if widget is active before rendering
+    fetch(`${domain}/api/widget-status?clientId=${clientId}`)
+        .then(res => res.json())
+        .then(data => {
+            if (!data.is_active) {
+                console.log('ChatWidget: Widget is inactive.');
+                return;
+            }
+            initWidget();
+        })
+        .catch(err => {
+            console.error('ChatWidget: Failed to check status, defaulting to active.', err);
+            initWidget();
+        });
 
-    const iframe = document.createElement('iframe');
-    const domain = new URL(script.src).origin;
+    function initWidget() {
+        // Create Iframe Container
+        const container = document.createElement('div');
+        container.id = 'chat-widget-container';
+        container.style.position = 'fixed';
+        container.style.zIndex = '999999';
+        // Initial State: Bottom Right, small size for launcher
+        container.style.bottom = '0px';
+        container.style.right = '0px';
+        container.style.top = 'auto';
+        container.style.left = 'auto';
+        container.style.width = '120px';
+        container.style.height = '120px';
+        container.style.pointerEvents = 'none';
+        // Transition applied later to prevent initial diagonal drift
 
-    // Pass initial device type
-    const initialDevice = getDeviceType();
-    iframe.src = `${domain}/widget/${clientId}?device=${initialDevice}`;
+        const iframe = document.createElement('iframe');
+        const domain = new URL(script.src).origin;
 
-    iframe.style.width = '100%';
-    iframe.style.height = '100%';
-    iframe.style.border = 'none';
-    iframe.style.backgroundColor = 'transparent';
-    iframe.allow = 'clipboard-read; clipboard-write; autoplay';
-    iframe.style.pointerEvents = 'auto';
+        // Pass initial device type
+        const initialDevice = getDeviceType();
+        iframe.src = `${domain}/widget/${clientId}?device=${initialDevice}`;
 
-    container.appendChild(iframe);
-    document.body.appendChild(container);
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
+        iframe.style.border = 'none';
+        iframe.style.backgroundColor = 'transparent';
+        iframe.allow = 'clipboard-read; clipboard-write; autoplay';
+        iframe.style.pointerEvents = 'auto';
 
-    // Apply transition AFTER the element is firmly anchored in the DOM.
-    // This prevents the browser from interpolating from a default (0,0) position.
-    requestAnimationFrame(() => {
-        container.style.transition = 'width 0.3s ease, height 0.3s ease, background-color 0.3s ease';
-    });
+        container.appendChild(iframe);
+        document.body.appendChild(container);
+
+        // Apply transition AFTER the element is firmly anchored in the DOM.
+        // This prevents the browser from interpolating from a default (0,0) position.
+        requestAnimationFrame(() => {
+            container.style.transition = 'width 0.3s ease, height 0.3s ease, background-color 0.3s ease';
+        });
+
+        // Store container reference for global access if needed
+        window.chatWidgetContainer = container;
+        window.chatWidgetIframe = iframe;
+    }
+
 
     // Handle Window Resize to notify widget
     let timeout;
