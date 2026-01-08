@@ -17,6 +17,9 @@
         return 'desktop';
     };
 
+    let container = null;
+    let iframe = null;
+
     // Check if widget is active before rendering
     fetch(`${domain}/api/widget-status?clientId=${clientId}`)
         .then(res => res.json())
@@ -34,7 +37,7 @@
 
     function initWidget() {
         // Create Iframe Container
-        const container = document.createElement('div');
+        container = document.createElement('div');
         container.id = 'chat-widget-container';
         container.style.position = 'fixed';
         container.style.zIndex = '999999';
@@ -48,7 +51,7 @@
         container.style.pointerEvents = 'none';
         // Transition applied later to prevent initial diagonal drift
 
-        const iframe = document.createElement('iframe');
+        iframe = document.createElement('iframe');
         // domain is defined in the outer scope
 
         // Pass initial device type
@@ -80,6 +83,7 @@
     // Handle Window Resize to notify widget
     let timeout;
     window.addEventListener('resize', () => {
+        if (!iframe) return;
         clearTimeout(timeout);
         timeout = setTimeout(() => {
             const device = getDeviceType();
@@ -138,6 +142,7 @@
     // Handle messages from React App
     window.addEventListener('message', (event) => {
         if (event.origin !== domain) return;
+        if (!container || !iframe) return;
 
         const { type, isOpen, config } = event.data;
 
