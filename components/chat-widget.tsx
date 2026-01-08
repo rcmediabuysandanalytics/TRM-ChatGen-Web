@@ -410,6 +410,9 @@ export function ChatWidget({
         }
     }, [forcedDevice]);
 
+    // Track if we should animate the window opening (skip on initial restore)
+    const shouldAnimate = useRef(false);
+
     // Notify parent iframe about size changes
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -421,6 +424,7 @@ export function ChatWidget({
             const message = {
                 type: 'TRM_CHAT_RESIZE',
                 isOpen,
+                animate: shouldAnimate.current, // Tell host whether to animate this change
                 config: {
                     width: width_px,
                     height: height_px,
@@ -430,6 +434,12 @@ export function ChatWidget({
                 }
             };
             window.parent.postMessage(message, '*');
+
+            // Enable animations for future updates
+            // We set this slightly later to ensure the 'animate: false' message is processed first
+            setTimeout(() => {
+                shouldAnimate.current = true;
+            }, 100);
 
             // 2. Synchronization:
             // We do NOT send TRM_CHAT_MODAL_CLOSE here. 
@@ -493,7 +503,7 @@ export function ChatWidget({
                 >
                     {isOpen && (
                         <motion.div
-                            initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                            initial={shouldAnimate.current ? { opacity: 0, y: 20, scale: 0.9 } : false}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 20, scale: 0.9 }}
                             transition={{ type: "spring", stiffness: 350, damping: 25 }}

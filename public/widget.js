@@ -155,6 +155,16 @@
             // ⛔ Ignore resize events while modal is open/closing
             if (isModal) return;
 
+            // Check if animation is allowed (default to true for backward compat)
+            const shouldAnimate = event.data.animate !== false;
+
+            if (!shouldAnimate) {
+                container.style.transition = 'none';
+            } else {
+                // Ensure transition is enabled (might have been disabled)
+                container.style.transition = 'width 0.3s ease, height 0.3s ease, background-color 0.3s ease';
+            }
+
             // Update last known config
             lastConfig = {
                 ...config,
@@ -164,11 +174,14 @@
             if (isOpen) {
                 // Widget is open
                 const w = (config.width || 350) + (config.right || 20) + 40;
-                const h = (config.height || 500) + (config.bottom || 20) + 120;
+                const h = (config.height || 500) + (config.bottom || 20) + 120; // +180 to account for larger header/footer
 
                 if (container.style.width !== '100vw') {
                     container.style.width = `${w}px`;
                     container.style.height = `${h}px`;
+                    // Force reflow if we disabled animation
+                    if (!shouldAnimate) void container.offsetWidth;
+
                     container.style.maxHeight = '100vh';
                     container.style.maxWidth = '100vw';
                     container.style.top = 'auto';
