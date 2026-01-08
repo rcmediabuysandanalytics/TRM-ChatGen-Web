@@ -103,9 +103,51 @@ export function ChatWidget({
     // Initialize Session ID
     useEffect(() => {
         if (typeof window !== 'undefined' && !sessionId) {
-            setSessionId(crypto.randomUUID());
+            // Try to recover session from storage first (handled in hydration), otherwise calc new
+            // We'll let the hydration effect handle the initial set, but if it remains empty after hydration (or no storage), set it here.
+            // Actually, we can just do one large hydration effect.
         }
     }, [sessionId]);
+
+    // Hydrate from Local Storage on Mount
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const key = `TRM_CHAT_STORAGE_${_clientId || 'default'}`;
+
+        try {
+            const stored = localStorage.getItem(key);
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                if (parsed.messages) setMessages(parsed.messages);
+                if (typeof parsed.isOpen === 'boolean') setIsOpen(parsed.isOpen);
+                if (parsed.sessionId) setSessionId(parsed.sessionId);
+                else setSessionId(crypto.randomUUID());
+            } else {
+                setSessionId(crypto.randomUUID());
+            }
+        } catch (e) {
+            console.error('Failed to load chat state', e);
+            setSessionId(crypto.randomUUID());
+        }
+    }, [_clientId]);
+
+    // Persist to Local Storage on Change
+    useEffect(() => {
+        if (typeof window === 'undefined' || !sessionId) return;
+        const key = `TRM_CHAT_STORAGE_${_clientId || 'default'}`;
+
+        const stateToSave = {
+            messages,
+            isOpen,
+            sessionId
+        };
+
+        try {
+            localStorage.setItem(key, JSON.stringify(stateToSave));
+        } catch (e) {
+            console.error('Failed to save chat state', e);
+        }
+    }, [messages, isOpen, sessionId, _clientId]);
 
     // Handle handling device-specific config
     const searchParams = useSearchParams();
