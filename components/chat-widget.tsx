@@ -109,6 +109,18 @@ export function ChatWidget({
         }
     }, [sessionId]);
 
+    // Helper: Check for inactivity (6 hours = 21,600,000 ms)
+    const checkInactivity = (storedData: any) => {
+        const NOW = Date.now();
+        const MAX_INACTIVITY = 6 * 60 * 60 * 1000; // 6 hours
+
+        if (storedData.lastActivityAt && (NOW - storedData.lastActivityAt > MAX_INACTIVITY)) {
+            console.log('ChatWidget: Session expired due to inactivity. Resetting.');
+            return true; // Expired
+        }
+        return false; // Active
+    };
+
     // Hydrate from Local Storage on Mount
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -118,10 +130,19 @@ export function ChatWidget({
             const stored = localStorage.getItem(key);
             if (stored) {
                 const parsed = JSON.parse(stored);
-                if (parsed.messages) setMessages(parsed.messages);
-                if (typeof parsed.isOpen === 'boolean') setIsOpen(parsed.isOpen);
-                if (parsed.sessionId) setSessionId(parsed.sessionId);
-                else setSessionId(crypto.randomUUID());
+
+                // Check if expired
+                if (checkInactivity(parsed)) {
+                    // Expired: Start fresh
+                    localStorage.removeItem(key);
+                    setSessionId(crypto.randomUUID());
+                } else {
+                    // Active: Restore state
+                    if (parsed.messages) setMessages(parsed.messages);
+                    if (typeof parsed.isOpen === 'boolean') setIsOpen(parsed.isOpen);
+                    if (parsed.sessionId) setSessionId(parsed.sessionId);
+                    else setSessionId(crypto.randomUUID());
+                }
             } else {
                 setSessionId(crypto.randomUUID());
             }
@@ -139,7 +160,8 @@ export function ChatWidget({
         const stateToSave = {
             messages,
             isOpen,
-            sessionId
+            sessionId,
+            lastActivityAt: Date.now() // Update timestamp on any state change
         };
 
         try {
@@ -148,6 +170,33 @@ export function ChatWidget({
             console.error('Failed to save chat state', e);
         }
     }, [messages, isOpen, sessionId, _clientId]);
+
+    // Re-check inactivity on Window Focus (e.g. user comes back to open tab next day)
+    useEffect(() => {
+        const handleFocus = () => {
+            if (typeof window === 'undefined') return;
+            const key = `TRM_CHAT_STORAGE_${_clientId || 'default'}`;
+            try {
+                const stored = localStorage.getItem(key);
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    if (checkInactivity(parsed)) {
+                        // Reset State in UI
+                        setMessages([]);
+                        setIsOpen(false);
+                        setActiveFlow(null);
+                        setSessionId(crypto.randomUUID());
+                        // Note: Persistence effect will run after these state updates and save the new clean state
+                    }
+                }
+            } catch (e) {
+                console.error('Error checking inactivity on focus', e);
+            }
+        };
+
+        window.addEventListener('focus', handleFocus);
+        return () => window.removeEventListener('focus', handleFocus);
+    }, [_clientId]);
 
     // Handle handling device-specific config
     const searchParams = useSearchParams();
