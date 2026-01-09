@@ -110,7 +110,7 @@ export function ChatWidget({
     }, [sessionId]);
 
     // Helper: Check for inactivity (6 hours = 21,600,000 ms)
-    const checkInactivity = (storedData: any) => {
+    const checkInactivity = (storedData: { lastActivityAt?: number }) => {
         const NOW = Date.now();
         const MAX_INACTIVITY = 6 * 60 * 60 * 1000; // 6 hours
 
