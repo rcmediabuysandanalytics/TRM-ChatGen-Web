@@ -64,6 +64,7 @@ export async function POST(request: Request) {
                 clientId,
                 clientName: clientData.bot_name,
                 submittedAt: new Date().toISOString(),
+                ghlInboundWebhook: clientData.ghl_inbound_webhook,
                 ...formData
             })
         });
