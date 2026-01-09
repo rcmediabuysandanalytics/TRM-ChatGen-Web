@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Send } from 'lucide-react';
+import { MessageCircle, X, Send, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useSearchParams } from 'next/navigation';
@@ -73,6 +73,135 @@ function QuickActionButton({ label, onClick, color, disabled }: { label: string,
         </button>
     );
 }
+
+const COUNTRIES = [
+    { code: 'US', name: 'United States', flag: '🇺🇸', dial_code: '+1' },
+    { code: 'CA', name: 'Canada', flag: '🇨🇦', dial_code: '+1' },
+    { code: 'GB', name: 'United Kingdom', flag: '🇬🇧', dial_code: '+44' },
+    { code: 'AU', name: 'Australia', flag: '🇦🇺', dial_code: '+61' },
+    { code: 'DE', name: 'Germany', flag: '🇩🇪', dial_code: '+49' },
+    { code: 'FR', name: 'France', flag: '🇫🇷', dial_code: '+33' },
+    { code: 'PH', name: 'Philippines', flag: '🇵🇭', dial_code: '+63' },
+    { code: 'IN', name: 'India', flag: '🇮🇳', dial_code: '+91' },
+    { code: 'CN', name: 'China', flag: '🇨🇳', dial_code: '+86' },
+    { code: 'JP', name: 'Japan', flag: '🇯🇵', dial_code: '+81' },
+    { code: 'SG', name: 'Singapore', flag: '🇸🇬', dial_code: '+65' },
+    { code: 'AE', name: 'United Arab Emirates', flag: '🇦🇪', dial_code: '+971' },
+    { code: 'SA', name: 'Saudi Arabia', flag: '🇸🇦', dial_code: '+966' },
+    { code: 'BR', name: 'Brazil', flag: '🇧🇷', dial_code: '+55' },
+    { code: 'MX', name: 'Mexico', flag: '🇲🇽', dial_code: '+52' },
+    { code: 'ZA', name: 'South Africa', flag: '🇿🇦', dial_code: '+27' },
+];
+
+const getCountryFromTimezone = () => {
+    try {
+        const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (!timeZone) return COUNTRIES[0];
+
+        // Simple heuristic map (expand as needed, kept minimal for size)
+        if (timeZone.startsWith('Australia/')) return COUNTRIES.find(c => c.code === 'AU') || COUNTRIES[0];
+        if (timeZone.startsWith('Europe/London')) return COUNTRIES.find(c => c.code === 'GB') || COUNTRIES[0];
+        if (timeZone.startsWith('Europe/Berlin')) return COUNTRIES.find(c => c.code === 'DE') || COUNTRIES[0];
+        if (timeZone.startsWith('Europe/Paris')) return COUNTRIES.find(c => c.code === 'FR') || COUNTRIES[0];
+        if (timeZone.startsWith('Asia/Manila')) return COUNTRIES.find(c => c.code === 'PH') || COUNTRIES[0];
+        if (timeZone.startsWith('Asia/Kolkata')) return COUNTRIES.find(c => c.code === 'IN') || COUNTRIES[0];
+        if (timeZone.startsWith('Asia/Shanghai')) return COUNTRIES.find(c => c.code === 'CN') || COUNTRIES[0];
+        if (timeZone.startsWith('Asia/Tokyo')) return COUNTRIES.find(c => c.code === 'JP') || COUNTRIES[0];
+        if (timeZone.startsWith('Asia/Singapore')) return COUNTRIES.find(c => c.code === 'SG') || COUNTRIES[0];
+        if (timeZone.startsWith('Asia/Dubai')) return COUNTRIES.find(c => c.code === 'AE') || COUNTRIES[0];
+        if (timeZone.startsWith('Asia/Riyadh')) return COUNTRIES.find(c => c.code === 'SA') || COUNTRIES[0];
+        // Default fallbacks for major regions
+        if (timeZone.startsWith('America/')) return COUNTRIES.find(c => c.code === 'US') || COUNTRIES[0]; // Broad fallback
+    } catch (e) {
+        console.warn('Country detection failed', e);
+    }
+    return COUNTRIES[0]; // Default to US
+};
+
+function PhoneInput({ name, required, className }: { name: string, required?: boolean, className?: string }) {
+    const [selected, setSelected] = useState(COUNTRIES[0]);
+    const [open, setOpen] = useState(false);
+    const [value, setValue] = useState('');
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Auto-detect on mount
+    useEffect(() => {
+        const detected = getCountryFromTimezone();
+        if (detected) setSelected(detected);
+    }, []);
+
+    // Close dropdown on click outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Clean input: only digits
+    const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value.replace(/\D/g, '');
+        setValue(val);
+    };
+
+    // Normalized value for submission: +Code[Number without leading 0]
+    const normalizedValue = selected.dial_code + value.replace(/^0+/, '');
+
+    return (
+        <div className={`relative flex gap-2 ${className}`}>
+            {/* Hidden Input for Form Submission */}
+            <input type="hidden" name={name} value={normalizedValue} />
+
+            {/* Country Selector */}
+            <div className="relative" ref={dropdownRef}>
+                <button
+                    type="button"
+                    onClick={() => setOpen(!open)}
+                    className="flex h-9 items-center gap-1.5 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                    <span className="text-base">{selected.flag}</span>
+                    <span className="text-muted-foreground text-xs">{selected.dial_code}</span>
+                    <ChevronDown className="h-3 w-3 opacity-50" />
+                </button>
+
+                {open && (
+                    <div className="absolute top-full left-0 mt-1 w-[240px] max-h-[200px] overflow-y-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md z-50">
+                        {COUNTRIES.map((c) => (
+                            <button
+                                key={c.code}
+                                type="button"
+                                className={`flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground ${selected.code === c.code ? 'bg-accent' : ''}`}
+                                onClick={() => {
+                                    setSelected(c);
+                                    setOpen(false);
+                                }}
+                            >
+                                <span className="text-base">{c.flag}</span>
+                                <span className="flex-1 text-left truncate">{c.name}</span>
+                                <span className="text-muted-foreground text-xs">{c.dial_code}</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Phone Number Input */}
+            <Input
+                type="tel"
+                value={value}
+                onChange={handleInput}
+                placeholder="Phone Number"
+                required={required}
+                className="flex-1 text-sm"
+            />
+        </div>
+    );
+}
+
+
 
 export function ChatWidget({
     theme = {},
@@ -664,7 +793,8 @@ export function ChatWidget({
                                                 <form onSubmit={handleLeadFormSubmit} className="space-y-3">
                                                     <Input name="name" placeholder="Name *" required className="text-sm" />
                                                     <Input name="email" type="email" placeholder="Email" className="text-sm" />
-                                                    <Input name="phone" type="tel" placeholder="Phone Number" className="text-sm" />
+
+                                                    <PhoneInput name="phone" required />
                                                     <textarea
                                                         name="message"
                                                         className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
