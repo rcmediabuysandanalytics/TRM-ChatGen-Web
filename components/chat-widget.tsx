@@ -357,12 +357,12 @@ export function ChatWidget({
 
             setActiveFlow(null);
             setMessages(prev => [
-                ...prev,
+                ...prev.filter(m => m.type !== 'lead_form'),
                 { role: 'assistant', content: 'Thanks! We have received your message and will follow up shortly.' }
             ]);
             toast({
                 title: "Success",
-                description: "Message sent successfully!",
+                description: "Leave Message Form Sent",
                 duration: 3000,
             });
         } catch (error) {
