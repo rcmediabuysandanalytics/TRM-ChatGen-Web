@@ -1,0 +1,22 @@
+﻿
+> temp_app@0.1.0 lint
+> eslint
+
+
+D:\000 Automation\Website\TRM-ChatGen-Web\app\admin\client\[id]\client-config-form.tsx
+    3:31  warning  'useCallback' is defined but never used        @typescript-eslint/no-unused-vars
+    8:10  warning  'Textarea' is defined but never used           @typescript-eslint/no-unused-vars
+   10:5   warning  'Dialog' is defined but never used             @typescript-eslint/no-unused-vars
+   11:5   warning  'DialogContent' is defined but never used      @typescript-eslint/no-unused-vars
+   12:5   warning  'DialogDescription' is defined but never used  @typescript-eslint/no-unused-vars
+   13:5   warning  'DialogFooter' is defined but never used       @typescript-eslint/no-unused-vars
+   14:5   warning  'DialogHeader' is defined but never used       @typescript-eslint/no-unused-vars
+   15:5   warning  'DialogTitle' is defined but never used        @typescript-eslint/no-unused-vars
+   20:38  warning  'Trash2' is defined but never used             @typescript-eslint/no-unused-vars
+  148:13  warning  'toast' is assigned a value but never used     @typescript-eslint/no-unused-vars
+
+D:\000 Automation\Website\TRM-ChatGen-Web\hooks\use-toast.ts
+  21:7  warning  'actionTypes' is assigned a value but only used as a type  @typescript-eslint/no-unused-vars
+
+Γ£û 11 problems (0 errors, 11 warnings)
+

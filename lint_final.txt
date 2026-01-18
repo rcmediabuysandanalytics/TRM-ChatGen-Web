@@ -1,0 +1,14 @@
+﻿
+> temp_app@0.1.0 lint
+> eslint
+
+
+D:\000 Automation\Website\TRM-ChatGen-Web\app\admin\client\[id]\client-config-form.tsx
+  14:10  warning  'useToast' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\000 Automation\Website\TRM-ChatGen-Web\components\chat-widget.test.ts
+  35:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  43:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+Γ£û 3 problems (2 errors, 1 warning)
+

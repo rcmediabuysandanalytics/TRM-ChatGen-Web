@@ -1,26 +1,16 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog"
 import { updateClientConfig } from '../../client-actions'
 import { ChatWidget } from '@/components/chat-widget'
 import { PremiumAlertModal } from '@/components/ui/premium-alert-modal'
-import { Loader2, Save, Copy, Check, Trash2, AlertCircle } from 'lucide-react'
+import { Loader2, Save, Copy, Check, AlertCircle } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { createClient } from '@/lib/supabase/client'
-import { useToast } from '@/hooks/use-toast'
 
 // Define strict types for the configuration
 interface ResponsiveDeviceConfig {
@@ -145,7 +135,7 @@ export function ClientConfigForm({ clientId, initialConfig }: { clientId: string
     const [uploadingLogo, setUploadingLogo] = useState(false)
     const [activeTab, setActiveTab] = useState<'mobile' | 'laptop' | 'desktop'>('desktop')
     const [copied, setCopied] = useState(false)
-    const { toast } = useToast()
+    // const { toast } = useToast()
 
     // Premium Alert State
     const [alertState, setAlertState] = useState<{

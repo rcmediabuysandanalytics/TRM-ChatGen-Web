@@ -470,13 +470,7 @@ export function ChatWidget({
     }, [messages, isOpen]);
 
     // Initialize Session ID
-    useEffect(() => {
-        if (typeof window !== 'undefined' && !sessionId) {
-            // Try to recover session from storage first (handled in hydration), otherwise calc new
-            // We'll let the hydration effect handle the initial set, but if it remains empty after hydration (or no storage), set it here.
-            // Actually, we can just do one large hydration effect.
-        }
-    }, [sessionId]);
+    // Note: Session recovery is handled in the hydration effect below.
 
     // Helper: Check for inactivity (6 hours = 21,600,000 ms)
     const checkInactivity = (storedData: { lastActivityAt?: number }) => {
@@ -1182,7 +1176,7 @@ export function ChatWidget({
 }
 
 // Helper to robustly check for "Leave Message" flag
-function shouldTriggerLeadForm(data: unknown): boolean {
+export function shouldTriggerLeadForm(data: unknown): boolean {
     if (!data || typeof data !== 'object') return false;
 
     const record = data as Record<string, unknown>;
